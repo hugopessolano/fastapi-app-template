@@ -17,8 +17,7 @@ If you run via Docker Compose, the existing `env_file: .env` entry already expos
 
 ## 3. Prepare the external DB
 ### Quick SQLite example
-```
-python - <<'PY'
+```python - <<'PY'
 import sqlite3
 conn = sqlite3.connect('app/external.db')
 conn.execute("CREATE TABLE IF NOT EXISTS legacy_items(id INTEGER PRIMARY KEY, name TEXT)")
@@ -32,7 +31,7 @@ For other engines, create tables and grant permissions using their native tools/
 ## 4. Use the helper in the app
 `app/database/external.py` exposes `get_external_db()`. Inject it via FastAPI dependencies.
 
-```
+```python - <<'PY'
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from app.database.external import get_external_db
