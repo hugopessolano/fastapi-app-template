@@ -1,74 +1,74 @@
-# How To Test the Template (Docker Workflow)
+﻿# How To Test the Template (Docker Workflow)
 
-Sigue estos pasos exactos. Solo necesitas Docker y una terminal; no hace falta saber programar.
+Follow these steps exactly. You only need Docker and a terminal; no coding skills required.
 
-## 1. Requisitos
-- Docker Desktop (Windows/macOS) o Docker Engine + Docker Compose v2 (Linux).
-- Clonar el repositorio y moverte a `app_template/`.
+## 1. Requirements
+- Docker Desktop (Windows/macOS) or Docker Engine + Docker Compose v2 (Linux).
+- Clone the repository and move to the template root (directory that contains `docker-compose.yml`).
 
-## 2. Preparar variables de entorno
+## 2. Prepare environment variables
 ```bash
 cp .env.example .env
 ```
-Abre `.env` y confirma:
+Open `.env` and confirm:
 - `AUTH_MODE=built_in`
 - `AUTO_BUILD_PERMISSIONS=true`
 - `ENABLE_SEED_DATA=true`
 
-## 3. Construir e iniciar con Docker Compose
+## 3. Build and start with Docker Compose
 ```bash
 docker compose up --build
 ```
-La primera vez tarda unos minutos. Cuando veas mensajes como `Service Running` o `Finished initializing base data`, la API está lista.
+The first run may take a few minutes. When you see messages such as `Service Running` or `Finished initializing base data`, the API is ready.
 
-## 4. Verificar que responde
-1. Abre un navegador y visita `http://localhost:8000/` → debería mostrar `{"message":"Service Running"}`.
-2. Visita `http://localhost:8000/docs` → Swagger tiene que cargar sin errores.
+## 4. Verify the API responds
+1. Open `http://localhost:8000/` in your browser -> you should see `{"message":"Service Running"}`.
+2. Visit `http://localhost:8000/docs` -> Swagger UI must load without errors.
 
-## 5. Probar el login (modo built_in)
-En otra terminal:
+## 5. Test the login (built_in mode)
+In another terminal:
 ```bash
 curl -X POST http://localhost:8000/auth/login \
   -d "username=admin@admin.com" \
   -d "password=admin"
 ```
-Guarda el valor de `access_token`.
+Copy the `access_token` from the response.
 
-## 6. Consumir un endpoint protegido
+## 6. Call a protected endpoint
 ```bash
-curl -H "Authorization: Bearer TOKEN_AQUI" \
+curl -H "Authorization: Bearer TOKEN_HERE" \
      http://localhost:8000/stores
 ```
-Si ves una lista (vacía o con “Base Store”), la lectura funciona.
+Seeing a list (empty or containing `Base Store`) confirms authenticated reads work.
 
-## 7. Crear un recurso
+## 7. Create a resource
 ```bash
 curl -X POST http://localhost:8000/stores \
-  -H "Authorization: Bearer TOKEN_AQUI" \
+  -H "Authorization: Bearer TOKEN_HERE" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Store de prueba","address":"Av Siempre Viva 123"}'
+  -d '{"name":"Sample Store","address":"123 Demo St"}'
 ```
-Debes recibir un JSON con el nuevo store. Esto confirma permisos de escritura y seeds correctos.
+You should receive the new store in JSON form, proving writes and seeds are working.
 
-## 8. Ver usuarios (requiere token)
+## 8. List users (requires token)
 ```bash
-curl -H "Authorization: Bearer TOKEN_AQUI" \
+curl -H "Authorization: Bearer TOKEN_HERE" \
      http://localhost:8000/users
 ```
-Deberías ver al menos el usuario admin. Confirma que el CRUD de usuarios está disponible.
+Expect to see at least the admin user; this validates the `/users` CRUD.
 
-## 9. Cambiar de modo de autenticación (opcional)
-1. Edita `.env` y coloca `AUTH_MODE=disabled`.
-2. Reinicia la app:
+## 9. Switch auth mode (optional)
+1. Edit `.env` and set `AUTH_MODE=disabled`.
+2. Restart the stack:
    ```bash
    docker compose down
    docker compose up --build
    ```
-3. Accede a `http://localhost:8000/stores` sin token. Si responde, el modo sin auth funciona.
+3. Hit `http://localhost:8000/stores` without a token. If it works, the no-auth mode is enabled.
 
-## 10. Apagar contenedores
+## 10. Stop containers
 ```bash
 docker compose down
 ```
 
-Si todos los pasos anteriores funcionan sin errores, el template está probado y listo para usarse.
+If every step completes without errors, the template has been verified end-to-end and is ready for customization.
