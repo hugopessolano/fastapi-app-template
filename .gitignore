@@ -1,0 +1,36 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Databases & local state
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE / tooling
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,73 @@
+# Quickstart Guide
+
+Use this checklist to run the template with Docker (recommended) and hit your first endpoint. Local Python instructions are included at the end as an alternative.
+
+## 1. Clone the repo
+```bash
+git clone <your-fork-url> fastapi-template
+cd fastapi-template/app_template
+```
+
+## 2. Prepare environment variables
+```bash
+cp .env.example .env
+```
+Key entries to review:
+- `DATABASE_URL`: defaults to SQLite. Point to Postgres/MySQL when needed.
+- `AUTH_MODE`: `built_in`, `disabled`, or `custom`.
+- `AUTO_BUILD_PERMISSIONS` / `ENABLE_SEED_DATA`: keep them `true` for the first run.
+
+## 3. Run with Docker Compose (recommended)
+```bash
+docker compose up --build
+```
+What happens:
+1. The image is built from the included `Dockerfile`.
+2. The container loads `.env` (thanks to `env_file`).
+3. Uvicorn serves the API at `http://localhost:8000/`.
+
+Stop the stack with `Ctrl+C` or:
+```bash
+docker compose down
+```
+
+## 4. Optional: run locally instead of Docker
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+## 5. Verify the API
+1. Visit `http://localhost:8000/` → `{"message":"Service Running"}`.
+2. Visit `http://localhost:8000/docs` → Swagger UI should load without errors.
+
+## 6. Authenticate (built-in mode)
+```bash
+curl -X POST http://localhost:8000/auth/login \
+  -d "username=admin@admin.com" \
+  -d "password=admin"
+```
+Copy the `access_token` from the response.
+
+## 7. Call a protected endpoint
+```bash
+curl -H "Authorization: Bearer TOKEN_HERE" \
+     http://localhost:8000/stores
+```
+
+## 8. Create a store (write test)
+```bash
+curl -X POST http://localhost:8000/stores \
+  -H "Authorization: Bearer TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Sample Store","address":"123 Demo St"}'
+```
+
+## 9. Explore other routers
+- `/users` lets you list/manage users (requires admin token). Try `curl -H "Authorization: Bearer TOKEN" http://localhost:8000/users`.
+- `/roles` and `/permissions` show how authorization rules are managed.
+- `AuthContext` adapts behavior automatically if you switch `AUTH_MODE`.
+
+Next steps: follow `docs/how_to_test.md` for a more detailed validation and `docs/customization-checklist.md` to adapt the template to your domain.
