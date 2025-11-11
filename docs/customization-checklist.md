@@ -3,7 +3,7 @@
 Use this list when adapting the template to a new project or domain.
 
 ## 1. Naming & Metadata
-- [ ] Update `app_template/README_template.md` with the new project name and description.
+- [ ] Update `README.md` with the new project name, summary, and setup notes.
 - [ ] Adjust `APP_NAME` and `ENVIRONMENT` in `.env`.
 - [ ] Review `docker-compose.yml` container names/ports.
 
@@ -37,7 +37,7 @@ Use this list when adapting the template to a new project or domain.
 ## 7. Documentation & Teaching Aids
 - [ ] Update `docs/quickstart.md` with domain-specific examples.
 - [ ] Expand the checklist if your team has extra compliance or deployment steps.
-- [ ] Keep `suggestions.md` up to date as the template evolves.
+- [ ] Track improvement ideas in your issue tracker or knowledge base.
 
 ## 8. Validation
 - [ ] Run local tests or add new ones under `tests/` (not included by default).
