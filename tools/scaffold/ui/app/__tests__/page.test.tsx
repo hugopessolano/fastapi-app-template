@@ -11,10 +11,12 @@ beforeEach(() => {
 });
 
 describe("ScaffoldStudio", () => {
-  it("renders the main heading", () => {
+  it("renders the main heading", async () => {
     render(<ScaffoldStudio />);
     expect(
-      screen.getByText("Administra specs, modelos y routers desde un mismo panel.")
+      await screen.findByText(
+        "Administra endpoints con formularios claros y completos."
+      )
     ).toBeInTheDocument();
   });
 });
