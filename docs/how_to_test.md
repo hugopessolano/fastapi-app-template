@@ -37,18 +37,18 @@ Copy the `access_token` from the response.
 ## 6. Call a protected endpoint
 ```bash
 curl -H "Authorization: Bearer TOKEN_HERE" \
-     http://localhost:8000/stores
+     http://localhost:8000/tenants
 ```
-Seeing a list (empty or containing `Base Store`) confirms authenticated reads work.
+Seeing a list (empty or containing `Base Tenant`) confirms authenticated reads work.
 
 ## 7. Create a resource
 ```bash
-curl -X POST http://localhost:8000/stores \
+curl -X POST http://localhost:8000/tenants \
   -H "Authorization: Bearer TOKEN_HERE" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Sample Store","address":"123 Demo St"}'
+  -d '{"name":"Sample Tenant","address":"123 Demo St"}'
 ```
-You should receive the new store in JSON form, proving writes and seeds are working.
+You should receive the new tenant in JSON form, proving writes and seeds are working.
 
 ## 8. List users (requires token)
 ```bash
@@ -64,7 +64,7 @@ Expect to see at least the admin user; this validates the `/users` CRUD.
    docker compose down
    docker compose up --build
    ```
-3. Hit `http://localhost:8000/stores` without a token. If it works, the no-auth mode is enabled.
+3. Hit `http://localhost:8000/tenants` without a token. If it works, the no-auth mode is enabled.
 
 ## 10. Stop containers
 ```bash

@@ -1,10 +1,10 @@
 # FastAPI Backend Template
 
 This template provides a didactic starting point for FastAPI projects. It ships with:
-- Example routers (`stores`, `users`) to demonstrate CRUD patterns (pagination, ordering, store scoping, role/store assignments).
+- Example routers (`tenants`, `users`) to demonstrate CRUD patterns (pagination, ordering, tenant scoping, role/tenant assignments).
 - Authentication and authorization (JWT + permissions derived from routes).
 - Structured logging (stdout + SQLite) and a sample SQL view for reporting.
-- Seed helpers to create a default admin user and a base store.
+- Seed helpers to create a default admin user and a base tenant.
 - Optional connector to secondary databases via `EXTERNAL_DB_URL`.
 - Soft delete support with `deleted_at` and automatic query filtering.
 - Docker workflow plus documentation to guide developers with little experience.
@@ -34,7 +34,7 @@ Set `AUTH_MODE` inside `.env` (default `built_in`):
 | `disabled` | Auth is bypassed; `AuthContext` becomes permissive (ideal for prototyping). |
 | `custom` | Placeholder to plug your own provider; the template raises 501 until you supply it. |
 
-Seeds (when enabled) create `admin@admin.com` / `admin` linked to the base store.
+Seeds (when enabled) create `admin@admin.com` / `admin` linked to the base tenant.
 
 ## Getting Started
 1. Copy the environment file.
@@ -60,18 +60,18 @@ Seeds (when enabled) create `admin@admin.com` / `admin` linked to the base store
 On startup the app:
 1. Creates tables (Alembic metadata).
 2. Optionally builds permissions (`AUTO_BUILD_PERMISSIONS=true`).
-3. Optionally seeds admin/store (`ENABLE_SEED_DATA=true`).
+3. Optionally seeds admin/tenant (`ENABLE_SEED_DATA=true`).
 
 ## How to Extend the Template
 1. **Models**: add SQLAlchemy models in `app/database/models/` and generate migrations with Alembic.
 2. **Schemas**: create Pydantic models in `app/schemas/`.
-3. **Router**: follow `app/routers/stores.py` for CRUD, pagination, and store filtering.
+3. **Router**: follow `app/routers/tenants.py` for CRUD, pagination, and tenant filtering.
 4. **Register**: include the router in `app/main.py` and set tags (permissions use them).
 5. **Document**: describe extra setup (seeds, config flags) inside `docs/`.
 
 Tips:
 - Inject `AuthContext` into new routers so they respect `AUTH_MODE`.
-- Reuse helpers (`filter_by_store`, `calculate_next_and_last_pages`, `order_by_parameter`).
+- Reuse helpers (`filter_by_tenant`, `calculate_next_and_last_pages`, `order_by_parameter`).
 - Update `app/initialization.py` only if new features need seed data (guard them with config flags).
 
 ## Extending Configuration
@@ -84,8 +84,8 @@ Tips:
 - `logging_stdout_level` and `logging_db_level` (from `.env`) control console/SQLite logging.
 - `LOGS_DB_PATH` may point outside `app/`; the template creates directories automatically.
 - Inspect logs quickly with `sqlite3 path/to/logs.db "SELECT * FROM logs ORDER BY id DESC LIMIT 20;"`.
-- Routers (`stores`, `users`, `roles`, `permissions`, `auth`) log actions (list/create/update/delete). Use them as examples when instrumenting new routers.
-- `app/views/view_queries.py` defines `stores_user_counts` to illustrate reporting with SQL views.
+- Routers (`tenants`, `users`, `roles`, `permissions`, `auth`) log actions (list/create/update/delete). Use them as examples when instrumenting new routers.
+- `app/views/view_queries.py` defines `tenants_user_counts` to illustrate reporting with SQL views.
 
 ## External Data Sources
 - Set `EXTERNAL_DB_URL` in `.env` when you need to talk to another database (e.g., legacy MariaDB, reporting warehouse).

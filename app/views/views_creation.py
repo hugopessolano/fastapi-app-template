@@ -1,11 +1,11 @@
 from app.database.database import engine
 from sqlalchemy import text, inspect
-from .view_queries import STORES_USER_COUNT_VIEW
+from .view_queries import TENANTS_USER_COUNT_VIEW
 from .view_schemas import View
 from typing import List
 
 default_views: List[View] = [
-    STORES_USER_COUNT_VIEW,
+    TENANTS_USER_COUNT_VIEW,
 ]
 
 def create_or_replace_view(view:View):

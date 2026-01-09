@@ -4,22 +4,26 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 from typing import List
 import uuid
 
-class Stores(Base):
-    __tablename__ = "stores"
+class Tenants(Base):
+    __tablename__ = "tenants"
     
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
     address = Column(String, nullable=False)
 
-    user_stores: Mapped[List['UserStores']] = relationship(
-        'UserStores',
-        back_populates='store',
+    user_tenants: Mapped[List['UserTenants']] = relationship(
+        'UserTenants',
+        back_populates='tenant',
         info={"soft_delete_cascade": True},
     )
-    users: Mapped[List['Users']] = relationship('Users', secondary='user_stores', back_populates='stores')
+    users: Mapped[List['Users']] = relationship(
+        'Users',
+        secondary='user_tenants',
+        back_populates='tenants',
+    )
     roles = relationship(
         "Roles",
-        back_populates="store",
+        back_populates="tenant",
         info={"soft_delete_cascade": True},
     )
     

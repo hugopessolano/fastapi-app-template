@@ -4,7 +4,7 @@ from app.database.database import get_db
 from app.database.models import Roles, Permissions, RolePermissions
 from app.schemas.users_schemas import BaseRole, RoleCreate, RoleUpdate
 from typing import List, Literal
-from app.routers.utils import validate_ids, convert_role_to_baserole, filter_by_store, calculate_next_and_last_pages, order_by_parameter
+from app.routers.utils import validate_ids, convert_role_to_baserole, filter_by_tenant, calculate_next_and_last_pages, order_by_parameter
 from app.auth.context import AuthContext, get_auth_context
 from app.logging import child_logger
 from app.database.soft_delete import soft_delete_by_id
@@ -38,8 +38,8 @@ async def get_roles(
     offset = (page - 1) * page_size
     roles_query = db.query(Roles).options(joinedload(Roles.permissions).joinedload(RolePermissions.permission))
 
-    if not auth.cross_store_allowed:
-        roles_query = filter_by_store(roles_query, Roles, auth.allowed_store_ids)
+    if not auth.cross_tenant_allowed:
+        roles_query = filter_by_tenant(roles_query, Roles, auth.allowed_tenant_ids)
 
     calculate_next_and_last_pages(roles_query, page_size, page, request, response)
     roles_query = order_by_parameter(order_by, order_dir, SORTABLE_FIELDS_ROLES, roles_query)
@@ -57,8 +57,8 @@ async def get_role(role_id: str,
                    ):
     role_query = db.query(Roles).options(joinedload(Roles.permissions).joinedload(RolePermissions.permission)).filter(Roles.id == role_id)
 
-    if not auth.cross_store_allowed:
-        role_query = filter_by_store(role_query, Roles, auth.allowed_store_ids)
+    if not auth.cross_tenant_allowed:
+        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
 
     role = role_query.first()
 
@@ -67,11 +67,11 @@ async def get_role(role_id: str,
     router_logger.bind(action="retrieve", role_id=role_id, auth_mode=auth.mode).debug("Fetched role")
     return convert_role_to_baserole(role, db)
 
-@router.get("/store/{store_id}", response_model = List[BaseRole])
-async def get_roles_by_store(
+@router.get("/tenant/{tenant_id}", response_model=List[BaseRole])
+async def get_roles_by_tenant(
     request: Request,
     response: Response, 
-    store_id: str, 
+    tenant_id: str,
     db: Session = Depends(get_db), 
     auth: AuthContext = Depends(get_auth_context),
     page: int = Query(1, ge=1),
@@ -80,10 +80,10 @@ async def get_roles_by_store(
     order_dir: Literal['asc', 'desc'] = Query("desc", description="Sort direction (asc/desc)") 
 ):
     offset = (page - 1) * page_size
-    roles_query = db.query(Roles).options(joinedload(Roles.permissions).joinedload(RolePermissions.permission)).filter(Roles.store_id == store_id)
+    roles_query = db.query(Roles).options(joinedload(Roles.permissions).joinedload(RolePermissions.permission)).filter(Roles.tenant_id == tenant_id)
 
-    if not auth.cross_store_allowed:
-        roles_query = filter_by_store(roles_query, Roles, auth.allowed_store_ids)
+    if not auth.cross_tenant_allowed:
+        roles_query = filter_by_tenant(roles_query, Roles, auth.allowed_tenant_ids)
     
     calculate_next_and_last_pages(roles_query, page_size, page, request, response)
     roles_query = order_by_parameter(order_by, order_dir, SORTABLE_FIELDS_ROLES, roles_query)
@@ -92,7 +92,7 @@ async def get_roles_by_store(
 
     roles_with_permissions = [convert_role_to_baserole(role, db) for role in roles]
     
-    router_logger.bind(action="list_by_store", store_id=store_id, auth_mode=auth.mode).debug("Fetched roles by store")
+    router_logger.bind(action="list_by_tenant", tenant_id=tenant_id, auth_mode=auth.mode).debug("Fetched roles by tenant")
     return roles_with_permissions
 
 @router.post("", response_model=BaseRole)
@@ -104,8 +104,8 @@ async def create_role(role: RoleCreate,
     if len(invalid_permissions) > 0:
         raise HTTPException(status_code=404, detail=f"Permission with the following ids were not found: {invalid_permissions}")
 
-    if not auth.cross_store_allowed and role.store_id not in auth.allowed_store_ids:
-        raise HTTPException(status_code=403, detail=f'User is not allowed to create Roles in store {role.store_id}')
+    if not auth.cross_tenant_allowed and role.tenant_id not in auth.allowed_tenant_ids:
+        raise HTTPException(status_code=403, detail=f'User is not allowed to create Roles in tenant {role.tenant_id}')
 
     new_role = Roles(**role.model_dump(exclude='role_permissions'))
     permissions = list()
@@ -121,7 +121,7 @@ async def create_role(role: RoleCreate,
     router_logger.bind(
         action="create",
         role_id=new_role.id,
-        store_id=new_role.store_id,
+        tenant_id=new_role.tenant_id,
         auth_mode=auth.mode,
         user_id=getattr(auth.user, "id", None),
     ).info("Created role")
@@ -135,8 +135,8 @@ async def update_role(role_id: str,
                       ):
     role_query = db.query(Roles).filter(Roles.id == role_id)
     
-    if not auth.cross_store_allowed:
-        role_query = filter_by_store(role_query, Roles, auth.allowed_store_ids)
+    if not auth.cross_tenant_allowed:
+        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
     
     role_model = role_query.first()
 
@@ -182,8 +182,8 @@ async def delete_role(role_id:str,
                       auth: AuthContext = Depends(get_auth_context)
                       ):
     role_query = db.query(Roles).filter(Roles.id == role_id)
-    if not auth.cross_store_allowed:
-        role_query = filter_by_store(role_query, Roles, auth.allowed_store_ids)
+    if not auth.cross_tenant_allowed:
+        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
 
     role = role_query.first()
     if role is None:

@@ -6,11 +6,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database.models import (
     Base,
-    Stores,
+    Tenants,
     Users,
     Roles,
     Permissions,
-    UserStores,
+    UserTenants,
     UserRoles,
     RolePermissions,
 )
@@ -33,56 +33,56 @@ class TestSoftDelete(unittest.TestCase):
         self.db.close()
 
     def test_default_query_excludes_deleted(self) -> None:
-        active_store = Stores(name="Active", address="A")
-        deleted_store = Stores(
+        active_tenant = Tenants(name="Active", address="A")
+        deleted_tenant = Tenants(
             name="Deleted",
             address="B",
             deleted_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
-        self.db.add_all([active_store, deleted_store])
+        self.db.add_all([active_tenant, deleted_tenant])
         self.db.commit()
 
-        stores = self.db.query(Stores).all()
-        self.assertEqual(len(stores), 1)
-        self.assertEqual(stores[0].name, "Active")
+        tenants = self.db.query(Tenants).all()
+        self.assertEqual(len(tenants), 1)
+        self.assertEqual(tenants[0].name, "Active")
 
-        all_stores = query_with_deleted(self.db, Stores).all()
-        self.assertEqual(len(all_stores), 2)
+        all_tenants = query_with_deleted(self.db, Tenants).all()
+        self.assertEqual(len(all_tenants), 2)
 
-    def test_soft_delete_store_cascades(self) -> None:
-        store = Stores(name="Main", address="Address")
-        role = Roles(name="Manager", store=store)
-        permission = Permissions(name="stores", state=True)
+    def test_soft_delete_tenant_cascades(self) -> None:
+        tenant = Tenants(name="Main", address="Address")
+        role = Roles(name="Manager", tenant=tenant)
+        permission = Permissions(name="tenants", state=True)
         role_permission = RolePermissions(role=role, permission=permission)
         user = Users(name="User", email="user@example.com", password="pw")
-        user_store = UserStores(user=user, store=store)
+        user_tenant = UserTenants(user=user, tenant=tenant)
         user_role = UserRoles(user=user, role=role)
 
         self.db.add_all(
             [
-                store,
+                tenant,
                 role,
                 permission,
                 role_permission,
                 user,
-                user_store,
+                user_tenant,
                 user_role,
             ]
         )
         self.db.commit()
 
-        result = soft_delete_by_id(self.db, Stores, store.id)
+        result = soft_delete_by_id(self.db, Tenants, tenant.id)
         self.assertTrue(result)
 
-        self.assertIsNone(self.db.query(Stores).filter(Stores.id == store.id).first())
-        self.assertIsNone(self.db.query(UserStores).filter(UserStores.store_id == store.id).first())
-        self.assertIsNone(self.db.query(Roles).filter(Roles.store_id == store.id).first())
+        self.assertIsNone(self.db.query(Tenants).filter(Tenants.id == tenant.id).first())
+        self.assertIsNone(self.db.query(UserTenants).filter(UserTenants.tenant_id == tenant.id).first())
+        self.assertIsNone(self.db.query(Roles).filter(Roles.tenant_id == tenant.id).first())
         self.assertIsNone(self.db.query(RolePermissions).filter(RolePermissions.role_id == role.id).first())
         self.assertIsNone(self.db.query(UserRoles).filter(UserRoles.role_id == role.id).first())
 
-        store_deleted = query_with_deleted(self.db, Stores).filter(Stores.id == store.id).first()
-        user_store_deleted = query_with_deleted(self.db, UserStores).filter(
-            UserStores.store_id == store.id
+        tenant_deleted = query_with_deleted(self.db, Tenants).filter(Tenants.id == tenant.id).first()
+        user_tenant_deleted = query_with_deleted(self.db, UserTenants).filter(
+            UserTenants.tenant_id == tenant.id
         ).first()
         role_deleted = query_with_deleted(self.db, Roles).filter(Roles.id == role.id).first()
         role_permission_deleted = query_with_deleted(self.db, RolePermissions).filter(
@@ -92,29 +92,29 @@ class TestSoftDelete(unittest.TestCase):
             UserRoles.role_id == role.id
         ).first()
 
-        self.assertIsNotNone(store_deleted.deleted_at)
-        self.assertIsNotNone(user_store_deleted.deleted_at)
+        self.assertIsNotNone(tenant_deleted.deleted_at)
+        self.assertIsNotNone(user_tenant_deleted.deleted_at)
         self.assertIsNotNone(role_deleted.deleted_at)
         self.assertIsNotNone(role_permission_deleted.deleted_at)
         self.assertIsNotNone(user_role_deleted.deleted_at)
 
         self.assertIsNotNone(self.db.query(Permissions).filter(Permissions.id == permission.id).first())
 
-    def test_soft_delete_user_does_not_delete_store(self) -> None:
-        store = Stores(name="Keep", address="Address")
+    def test_soft_delete_user_does_not_delete_tenant(self) -> None:
+        tenant = Tenants(name="Keep", address="Address")
         user = Users(name="User", email="user2@example.com", password="pw")
-        user_store = UserStores(user=user, store=store)
+        user_tenant = UserTenants(user=user, tenant=tenant)
 
-        self.db.add_all([store, user, user_store])
+        self.db.add_all([tenant, user, user_tenant])
         self.db.commit()
 
         result = soft_delete_by_id(self.db, Users, user.id)
         self.assertTrue(result)
 
-        store_active = self.db.query(Stores).filter(Stores.id == store.id).first()
-        self.assertIsNotNone(store_active)
+        tenant_active = self.db.query(Tenants).filter(Tenants.id == tenant.id).first()
+        self.assertIsNotNone(tenant_active)
 
-        user_store_deleted = query_with_deleted(self.db, UserStores).filter(
-            UserStores.user_id == user.id
+        user_tenant_deleted = query_with_deleted(self.db, UserTenants).filter(
+            UserTenants.user_id == user.id
         ).first()
-        self.assertIsNotNone(user_store_deleted.deleted_at)
+        self.assertIsNotNone(user_tenant_deleted.deleted_at)

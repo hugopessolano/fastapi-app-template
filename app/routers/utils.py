@@ -3,7 +3,7 @@ from sqlalchemy.orm.query import Query
 from app.database.models import Permissions, Roles, Base, Users
 from typing import List
 from app.schemas.users_schemas import BaseRole, BasePermission, UserResponse
-from app.schemas.stores_schemas import BaseStore
+from app.schemas.tenants_schemas import BaseTenant
 from sqlalchemy.inspection import inspect
 import math
 from fastapi import Request, Response, HTTPException
@@ -39,46 +39,49 @@ def convert_role_to_baserole(role: Roles, db: Session) -> BaseRole:
     return BaseRole(
         id=role.id,
         name=role.name,
-        store_id=role.store_id,
+        tenant_id=role.tenant_id,
         role_permissions=permissions_list,
         created_at=role.created_at,
         updated_at=role.updated_at
     )
 
 
-def convert_store_to_basestore(store):
-    return BaseStore(
-        id=store.id,
-        created_at=store.created_at,
-        updated_at=store.updated_at,
-        name=store.name,
-        address=store.address,
+def convert_tenant_to_basetenant(tenant):
+    return BaseTenant(
+        id=tenant.id,
+        created_at=tenant.created_at,
+        updated_at=tenant.updated_at,
+        name=tenant.name,
+        address=tenant.address,
     )
 
 
 def convert_user_to_response(user: Users, db: Session) -> UserResponse:
     roles_list = [convert_role_to_baserole(user_role.role, db) for user_role in user.roles]
-    stores_list = [convert_store_to_basestore(user_store.store) for user_store in user.user_stores]
+    tenants_list = [
+        convert_tenant_to_basetenant(user_tenant.tenant)
+        for user_tenant in user.user_tenants
+    ]
     return UserResponse(
         id=user.id,
         name=user.name,
         email=user.email,
-        cross_store_allowed=user.cross_store_allowed,
+        cross_tenant_allowed=user.cross_tenant_allowed,
         user_roles=roles_list,
-        user_stores=stores_list,
+        user_tenants=tenants_list,
     )
 
-def filter_by_store(
+def filter_by_tenant(
     db_query: Query,
     model: Base,
-    allowed_store_ids: List[str],
-    column_name: str = "store_id",
+    allowed_tenant_ids: List[str],
+    column_name: str = "tenant_id",
 ):
-    if allowed_store_ids is None:
+    if allowed_tenant_ids is None:
         return db_query
-    if len(allowed_store_ids) == 0:
-        utils_logger.warning("User attempted to access stores without assignments.")
-        raise HTTPException(status_code=403, detail="User is not assigned to any store.")
+    if len(allowed_tenant_ids) == 0:
+        utils_logger.warning("User attempted to access tenants without assignments.")
+        raise HTTPException(status_code=403, detail="User is not assigned to any tenant.")
 
     column = getattr(model, column_name, None)
     if column is None:
@@ -89,8 +92,8 @@ def filter_by_store(
     utils_logger.bind(
         model=getattr(model, "__tablename__", str(model)),
         column=column_name,
-    ).debug("Filtering query by allowed stores")
-    return db_query.filter(column.in_(allowed_store_ids))
+    ).debug("Filtering query by allowed tenants")
+    return db_query.filter(column.in_(allowed_tenant_ids))
 
 def calculate_next_and_last_pages(query:Query, page_size:int, page:int, request:Request, response:Response):
     total_elements = query.count() 

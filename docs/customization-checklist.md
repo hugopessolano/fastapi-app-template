@@ -15,13 +15,13 @@ Use this list when adapting the template to a new project or domain.
 - [ ] Configure `EXTERNAL_DB_URL` (if you need a secondary DB) and use `app/database/external.py` to access it from routers/services.
 
 ## 3. Database & Migrations
-- [ ] Remove placeholder data (Base Store, admin user) if not needed.
+- [ ] Remove placeholder data (Base Tenant, admin user) if not needed.
 - [ ] Add new models in `app/database/models/` and run `alembic revision --autogenerate`.
 - [ ] Follow `docs/alembic-guide.md` for step-by-step migration commands.
 - [ ] Clean `app/app-bkp.db` or mount a persistent volume suited for the new environment.
 
 ## 4. Routers & Schemas
-- [ ] Duplicate `stores.py` as a baseline for new resources.
+- [ ] Duplicate `tenants.py` as a baseline for new resources.
 - [ ] Create Pydantic schemas in `app/schemas/`.
 - [ ] Register the new router inside `app/main.py`.
 - [ ] Tag routes thoughtfully so permissions make sense (`tags=['Inventory']`, etc.).

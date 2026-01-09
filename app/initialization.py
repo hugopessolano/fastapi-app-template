@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.database.models import Users, Roles, Permissions, RolePermissions, UserRoles, Stores
+from app.database.models import Users, Roles, Permissions, RolePermissions, UserRoles, Tenants
 from app.auth.hashing import hash_string
 from app.logging import child_logger
 
@@ -37,7 +37,7 @@ def create_admin_user(check_existing_users: bool, db: Session) -> None:
             name="admin",
             password=hashed_password,
             email="admin@admin.com",
-            cross_store_allowed=True
+            cross_tenant_allowed=True
         )
         db.add(admin_user)
         db.flush()
@@ -76,35 +76,35 @@ def create_admin_user(check_existing_users: bool, db: Session) -> None:
         init_logger.error(f"Error during admin user creation: {e}")
 
 
-def create_base_store(db: Session) -> None:
+def create_base_tenant(db: Session) -> None:
     """
-    Creates a base store if no stores exist in the database.
+    Creates a base tenant if no tenants exist in the database.
     """
     try:
-        store_count = db.query(Stores).count()
-        if store_count > 0:
-            init_logger.info("Stores already exist. Skipping base store creation.")
+        tenant_count = db.query(Tenants).count()
+        if tenant_count > 0:
+            init_logger.info("Tenants already exist. Skipping base tenant creation.")
             return
 
-        init_logger.info("Creating base store...")
+        init_logger.info("Creating base tenant...")
 
-        base_store = Stores(name="Base Store", address="Fake Address 1")
-        db.add(base_store)
+        base_tenant = Tenants(name="Base Tenant", address="Fake Address 1")
+        db.add(base_tenant)
         db.commit()
-        init_logger.info(f"Base store created successfully (id: {base_store.id})")
+        init_logger.info(f"Base tenant created successfully (id: {base_tenant.id})")
 
     except Exception as e:
-        init_logger.error(f"Error while creating base store: {e}")
+        init_logger.error(f"Error while creating base tenant: {e}")
         db.rollback()
 
 
 def initialize_database(check_existing_users: bool = True):
     """
-    Initializes the database by creating an admin user and a sample store.
+    Initializes the database by creating an admin user and a sample tenant.
     """
     db: Session = next(get_db())
     try:
         create_admin_user(check_existing_users, db)
-        create_base_store(db)
+        create_base_tenant(db)
     finally:
         db.close()

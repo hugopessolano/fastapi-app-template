@@ -1,14 +1,14 @@
 from .base_models import Base
-from .stores_models import Stores
-from .users_models import Users, Roles, Permissions, UserRoles, RolePermissions, UserStores
+from .tenants_models import Tenants
+from .users_models import Users, Roles, Permissions, UserRoles, RolePermissions, UserTenants
 
 __all__ = [
     "Base",
-    "Stores",
+    "Tenants",
     "Users",
     "Roles",
     "Permissions",
     "UserRoles",
     "RolePermissions",
-    "UserStores",
+    "UserTenants",
 ]

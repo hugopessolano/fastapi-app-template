@@ -2,15 +2,15 @@ from pydantic import BaseModel
 from typing import Optional
 from app.schemas.base_schema import BaseSchema
 
-class BaseStore(BaseSchema):
+class BaseTenant(BaseSchema):
     name: str
     address: str
 
-class StoreCreate(BaseModel):
+class TenantCreate(BaseModel):
     name: str
     address: str
 
-class StoreUpdate(BaseModel):
+class TenantUpdate(BaseModel):
     name: Optional[str] = None
     address: Optional[str] = None
 

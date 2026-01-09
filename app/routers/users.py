@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Literal
 
 from app.database.database import get_db
-from app.database.models import Users, UserStores, Stores, Roles, UserRoles
+from app.database.models import Users, UserTenants, Tenants, Roles, UserRoles
 from app.schemas.users_schemas import (
     UserCreate,
     UserUpdate,
     UserResponse,
     UserRolePatch,
-    UserStorePatch,
+    UserTenantPatch,
 )
 from app.routers.utils import (
     validate_ids,
@@ -35,7 +35,7 @@ def load_user_with_relationships(db: Session, user_id: str) -> Users | None:
         db.query(Users)
         .options(
             joinedload(Users.roles).joinedload(UserRoles.role),
-            joinedload(Users.user_stores).joinedload(UserStores.store),
+            joinedload(Users.user_tenants).joinedload(UserTenants.tenant),
         )
         .filter(Users.id == user_id)
         .first()
@@ -44,17 +44,17 @@ def load_user_with_relationships(db: Session, user_id: str) -> Users | None:
 SORTABLE_FIELDS_USERS = {
     "name": Users.name,
     "email": Users.email,
-    "cross_store_allowed": Users.cross_store_allowed,
+    "cross_tenant_allowed": Users.cross_tenant_allowed,
     "created_at": Users.created_at,
     "updated_at": Users.updated_at,
 }
 
 
 def ensure_user_admin(auth: AuthContext):
-    if not auth.cross_store_allowed:
+    if not auth.cross_tenant_allowed:
         raise HTTPException(
             status_code=403,
-            detail="User management requires cross-store privileges",
+            detail="User management requires cross-tenant privileges",
         )
 
 
@@ -80,7 +80,7 @@ async def get_users(
         db.query(Users)
         .options(
             joinedload(Users.roles).joinedload(UserRoles.role),
-            joinedload(Users.user_stores).joinedload(UserStores.store),
+            joinedload(Users.user_tenants).joinedload(UserTenants.tenant),
         )
     )
     calculate_next_and_last_pages(users_query, page_size, page, request, response)
@@ -101,7 +101,7 @@ async def get_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not auth.cross_store_allowed and auth.user and auth.user.id != user_id:
+    if not auth.cross_tenant_allowed and auth.user and auth.user.id != user_id:
         raise HTTPException(status_code=403, detail="Not allowed to view this user")
 
     router_logger.bind(action="retrieve", target_user=user_id, auth_mode=auth.mode).debug(
@@ -117,11 +117,11 @@ async def create_user(
     auth: AuthContext = Depends(get_auth_context),
 ):
     ensure_user_admin(auth)
-    invalid_stores = validate_ids(payload.user_stores, Stores, db)
-    if invalid_stores:
+    invalid_tenants = validate_ids(payload.user_tenants, Tenants, db)
+    if invalid_tenants:
         raise HTTPException(
             status_code=404,
-            detail=f"Stores not found: {invalid_stores}",
+            detail=f"Tenants not found: {invalid_tenants}",
         )
     invalid_roles = validate_ids(payload.user_roles, Roles, db)
     if invalid_roles:
@@ -135,13 +135,13 @@ async def create_user(
         name=payload.name,
         email=payload.email,
         password=hashed_password,
-        cross_store_allowed=payload.cross_store_allowed,
+        cross_tenant_allowed=payload.cross_tenant_allowed,
     )
     db.add(new_user)
     db.flush()
 
-    for store_id in payload.user_stores:
-        db.add(UserStores(user_id=new_user.id, store_id=store_id))
+    for tenant_id in payload.user_tenants:
+        db.add(UserTenants(user_id=new_user.id, tenant_id=tenant_id))
 
     for role_id in payload.user_roles:
         db.add(UserRoles(user_id=new_user.id, role_id=role_id))
@@ -219,10 +219,10 @@ async def patch_user_roles(
     return convert_user_to_response(user, db)
 
 
-@router.patch("/{user_id}/stores", response_model=UserResponse)
-async def patch_user_stores(
+@router.patch("/{user_id}/tenants", response_model=UserResponse)
+async def patch_user_tenants(
     user_id: str,
-    payload: UserStorePatch,
+    payload: UserTenantPatch,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
 ):
@@ -231,29 +231,29 @@ async def patch_user_stores(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    invalid_stores = validate_ids(payload.user_stores, Stores, db)
-    if invalid_stores:
+    invalid_tenants = validate_ids(payload.user_tenants, Tenants, db)
+    if invalid_tenants:
         raise HTTPException(
             status_code=404,
-            detail=f"Stores not found: {invalid_stores}",
+            detail=f"Tenants not found: {invalid_tenants}",
         )
 
-    existing_store_ids = {store.store_id for store in user.user_stores}
-    requested = set(payload.user_stores)
+    existing_tenant_ids = {tenant.tenant_id for tenant in user.user_tenants}
+    requested = set(payload.user_tenants)
 
-    for store_id in requested - existing_store_ids:
-        db.add(UserStores(user_id=user.id, store_id=store_id))
+    for tenant_id in requested - existing_tenant_ids:
+        db.add(UserTenants(user_id=user.id, tenant_id=tenant_id))
 
-    for store_id in existing_store_ids - requested:
-        db.query(UserStores).filter(
-            UserStores.user_id == user.id, UserStores.store_id == store_id
+    for tenant_id in existing_tenant_ids - requested:
+        db.query(UserTenants).filter(
+            UserTenants.user_id == user.id, UserTenants.tenant_id == tenant_id
         ).delete(synchronize_session=False)
 
     db.commit()
     db.refresh(user)
     user = load_user_with_relationships(db, user_id)
-    router_logger.bind(action="patch_stores", target_user=user_id).info(
-        "Updated user stores"
+    router_logger.bind(action="patch_tenants", target_user=user_id).info(
+        "Updated user tenants"
     )
 
     return convert_user_to_response(user, db)

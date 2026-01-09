@@ -4,18 +4,21 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 from typing import List
 import uuid
 
-class UserStores(Base) :
-    __tablename__ = "user_stores"
+class UserTenants(Base):
+    __tablename__ = "user_tenants"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey('users.id'))
-    store_id = Column(String, ForeignKey('stores.id'))
+    tenant_id = Column(String, ForeignKey('tenants.id'))
 
-    user = relationship("Users", back_populates="user_stores")
-    store = relationship("Stores", back_populates="user_stores")
+    user = relationship("Users", back_populates="user_tenants")
+    tenant = relationship("Tenants", back_populates="user_tenants")
 
     def __repr__(self):
-        return f'UserStores(id={self.id}, user_id={self.user_id}, store_id={self.store_id})'
+        return (
+            f'UserTenants(id={self.id}, user_id={self.user_id}, '
+            f'tenant_id={self.tenant_id})'
+        )
 
 class Users(Base):
     __tablename__ = "users"
@@ -24,19 +27,23 @@ class Users(Base):
     name = Column(String, nullable=False)
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
-    cross_store_allowed = Column(Boolean, default=False)
+    cross_tenant_allowed = Column(Boolean, default=False)
 
     roles: Mapped[List['UserRoles']] = relationship(
         'UserRoles',
         back_populates='user',
         info={"soft_delete_cascade": True},
     )
-    user_stores: Mapped[List['UserStores']] = relationship(
-        'UserStores',
+    user_tenants: Mapped[List['UserTenants']] = relationship(
+        'UserTenants',
         back_populates='user',
         info={"soft_delete_cascade": True},
     )
-    stores: Mapped[List['Stores']] = relationship('Stores', secondary='user_stores', back_populates='users')
+    tenants: Mapped[List['Tenants']] = relationship(
+        'Tenants',
+        secondary='user_tenants',
+        back_populates='users',
+    )
 
     def __repr__(self):
         return f'Users(id={self.id}, name={self.name}, email={self.email}, password={self.password})'
@@ -46,7 +53,7 @@ class Roles(Base):
     
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
-    store_id = Column(String, ForeignKey('stores.id'))
+    tenant_id = Column(String, ForeignKey('tenants.id'))
 
     users: Mapped[List['UserRoles']] = relationship(
         'UserRoles',
@@ -58,10 +65,10 @@ class Roles(Base):
         back_populates='role',
         info={"soft_delete_cascade": True},
     )
-    store = relationship("Stores", back_populates="roles")
+    tenant = relationship("Tenants", back_populates="roles")
 
     def __repr__(self):
-        return f'Roles(id={self.id}, name={self.name}, store_id={self.store_id})'
+        return f'Roles(id={self.id}, name={self.name}, tenant_id={self.tenant_id})'
 
 class Permissions(Base):
     __tablename__ = "permissions"

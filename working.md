@@ -6,8 +6,8 @@ No hay cambios aplicados aun; es una base de referencia para planificar.
 ## 1) Acoplamiento entre modulos y permisos/autenticacion
 Estado actual
 - La seleccion de routers depende del modo de auth via `app/routers/registry.py`.
-- Si `AUTH_MODE=disabled`, solo se incluye `stores` y las rutas de auth quedan fuera del esquema.
-- `build_permissions` crea permisos en base a rutas presentes y no depende de `stores`.
+- Si `AUTH_MODE=disabled`, solo se incluye `tenants` y las rutas de auth quedan fuera del esquema.
+- `build_permissions` crea permisos en base a rutas presentes y no depende de `tenants`.
 
 Implicaciones
 - Las rutas de auth pueden desactivarse sin tocar `app/main.py`.
@@ -24,7 +24,7 @@ Estado actual
 - Los endpoints usan soft delete y cascada:
   - La cascada es opt-in por metadata en relaciones `info={"soft_delete_cascade": True}`.
   - El helper `soft_delete_by_id` aplica la cascada segun esas relaciones.
-- La vista `stores_user_counts` excluye registros con `deleted_at`.
+- La vista `tenants_user_counts` excluye registros con `deleted_at`.
 
 Implicaciones
 - Las eliminaciones quedan trazadas y recuperables.
@@ -38,7 +38,7 @@ Expansion de lo que se necesita
 
 ## 3) Versionado de endpoints y separacion de logica
 Estado actual
-- Los endpoints viven directamente en `app/routers/` y se montan con prefijos sin version (`/stores`, `/users`, etc.).
+- Los endpoints viven directamente en `app/routers/` y se montan con prefijos sin version (`/tenants`, `/users`, etc.).
 - La logica de negocio esta mezclada en los routers.
 
 Implicaciones
@@ -53,7 +53,7 @@ Expansion de lo que se necesita
 ## 4) Creacion manual de endpoints/schemas/modelos
 Estado actual
 - No hay generadores ni scripts. Agregar un recurso implica crear modelo, schema, router, registrar en `app/main.py` y posiblemente permisos.
-- La guia actual es manual (ej. copiar `stores` y ajustar).
+- La guia actual es manual (ej. copiar `tenants` y ajustar).
 
 Implicaciones
 - Alto costo de repeticion y riesgo de inconsistencias.

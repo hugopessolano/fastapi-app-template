@@ -15,8 +15,8 @@ class AuthContext:
     mode: str
     user: Optional[Users]
     is_authenticated: bool
-    cross_store_allowed: bool
-    allowed_store_ids: List[str] = field(default_factory=list)
+    cross_tenant_allowed: bool
+    allowed_tenant_ids: List[str] = field(default_factory=list)
 
     @property
     def has_user(self) -> bool:
@@ -36,8 +36,8 @@ async def get_auth_context(
             mode=mode,
             user=None,
             is_authenticated=False,
-            cross_store_allowed=True,
-            allowed_store_ids=[],
+            cross_tenant_allowed=True,
+            allowed_tenant_ids=[],
         )
 
     if mode == "custom":
@@ -53,12 +53,12 @@ async def get_auth_context(
         raise HTTPException(status_code=401, detail="Missing credentials")
 
     user = get_current_user(request, token=token, db=db)
-    store_ids = [store.id for store in user.stores]
+    tenant_ids = [tenant.id for tenant in user.tenants]
 
     return AuthContext(
         mode=mode,
         user=user,
         is_authenticated=True,
-        cross_store_allowed=user.cross_store_allowed,
-        allowed_store_ids=store_ids,
+        cross_tenant_allowed=user.cross_tenant_allowed,
+        allowed_tenant_ids=tenant_ids,
     )
