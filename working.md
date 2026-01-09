@@ -68,6 +68,7 @@ Estado actual
 - `alembic.ini` esta en la raiz y usa `script_location = app/alembic`.
 - `app/alembic/env.py` ajusta `sqlalchemy.url` con `get_migration_database_url()` y evita imports fragiles.
 - `docs/alembic-guide.md` contiene pasos simples para crear, aplicar y revertir migraciones.
+- Hay una migracion inicial en `app/alembic/versions/` para el esquema actual.
 
 Implicaciones
 - Se reducen errores de ruta y de DB no alineada con `DATABASE_URL`.
