@@ -127,7 +127,7 @@ def update_all_list(content: str, item: str) -> str:
 
 
 def hash_spec(path: Path) -> str:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     return hash_text(json.dumps(data, sort_keys=True))
 
 

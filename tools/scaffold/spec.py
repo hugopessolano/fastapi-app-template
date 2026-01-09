@@ -57,7 +57,7 @@ def to_class_name(value: str) -> str:
 
 
 def load_spec(path: Path) -> ResourceSpec:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     validate_spec(data)
     return ResourceSpec(
         version=data["version"],
