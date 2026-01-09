@@ -126,7 +126,7 @@ class TestScaffoldApi(unittest.TestCase):
             )
             write_file(spec_path, json.dumps(spec, indent=2))
             response = client.post(
-                "/scaffold/sync",
+                "/scaffold/sync-to-code",
                 json={"spec_path": str(spec_path.relative_to(root))},
             )
             self.assertEqual(response.status_code, 200)
@@ -140,7 +140,7 @@ class TestScaffoldApi(unittest.TestCase):
             model_path.write_text(updated, encoding="utf-8")
 
             response = client.post(
-                "/scaffold/sync",
+                "/scaffold/sync-from-code",
                 json={"spec_path": str(spec_path.relative_to(root))},
             )
             self.assertEqual(response.status_code, 200)

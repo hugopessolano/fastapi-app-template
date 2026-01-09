@@ -7,7 +7,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from tools.scaffold.scaffold import create_resource, modify_resource, remove_resource, sync_resource
+from tools.scaffold.scaffold import (
+    create_resource,
+    modify_resource,
+    remove_resource,
+    sync_resource,
+    sync_resource_from_code,
+    sync_resource_to_code,
+)
 from tools.scaffold.spec import validate_spec
 
 
@@ -82,6 +89,14 @@ def create_api_app(root: Path) -> FastAPI:
     @app.post("/scaffold/sync")
     def scaffold_sync(payload: SpecPathRequest) -> dict[str, str]:
         return scaffold_action(root, payload.spec_path, sync_resource)
+
+    @app.post("/scaffold/sync-to-code")
+    def scaffold_sync_to_code(payload: SpecPathRequest) -> dict[str, str]:
+        return scaffold_action(root, payload.spec_path, sync_resource_to_code)
+
+    @app.post("/scaffold/sync-from-code")
+    def scaffold_sync_from_code(payload: SpecPathRequest) -> dict[str, str]:
+        return scaffold_action(root, payload.spec_path, sync_resource_from_code)
 
     @app.post("/scaffold/remove")
     def scaffold_remove(payload: SpecPathRequest) -> dict[str, str]:

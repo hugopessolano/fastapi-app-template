@@ -33,8 +33,48 @@ def modify_resource(root: Path, spec_path: Path) -> None:
 
 
 def sync_resource(root: Path, spec_path: Path) -> None:
+    _sync_resource(root, spec_path, mode="auto")
+
+
+def sync_resource_to_code(root: Path, spec_path: Path) -> None:
+    _sync_resource(root, spec_path, mode="to_code")
+
+
+def sync_resource_from_code(root: Path, spec_path: Path) -> None:
+    _sync_resource(root, spec_path, mode="from_code")
+
+
+def remove_resource(root: Path, spec_path: Path, delete_spec: bool = False) -> None:
     spec = load_spec(spec_path)
     paths = build_paths(root, spec)
+    for path in paths.values():
+        if path.exists():
+            path.unlink()
+    remove_models_init(root, spec)
+    remove_registry_entry(root, spec)
+    remove_manifest_entry(root, spec)
+    if delete_spec and spec_path.exists():
+        spec_path.unlink()
+
+
+def _sync_resource(root: Path, spec_path: Path, mode: str) -> None:
+    spec = load_spec(spec_path)
+    paths = build_paths(root, spec)
+    if mode == "to_code":
+        write_scaffold_files(spec, paths)
+        update_models_init(root, spec)
+        ensure_registry_entry(root, spec)
+        update_manifest(root, spec, spec_path, paths)
+        return
+    if mode == "from_code":
+        required = [paths["model"], paths["router"]]
+        missing = [path for path in required if not path.exists()]
+        if missing:
+            raise FileNotFoundError(f"Missing source files: {', '.join(str(path) for path in missing)}")
+        sync_spec_from_code(spec, spec_path, paths)
+        update_manifest(root, spec, spec_path, paths)
+        return
+
     manifest = load_manifest(root)
     resource_key = spec.plural
     record = manifest.get("resources", {}).get(resource_key)
@@ -64,19 +104,6 @@ def sync_resource(root: Path, spec_path: Path) -> None:
         return
 
     update_manifest(root, spec, spec_path, paths)
-
-
-def remove_resource(root: Path, spec_path: Path, delete_spec: bool = False) -> None:
-    spec = load_spec(spec_path)
-    paths = build_paths(root, spec)
-    for path in paths.values():
-        if path.exists():
-            path.unlink()
-    remove_models_init(root, spec)
-    remove_registry_entry(root, spec)
-    remove_manifest_entry(root, spec)
-    if delete_spec and spec_path.exists():
-        spec_path.unlink()
 
 
 def build_paths(root: Path, spec: ResourceSpec) -> dict[str, Path]:

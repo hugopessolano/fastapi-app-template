@@ -15,8 +15,9 @@ describe("ScaffoldStudio", () => {
     render(<ScaffoldStudio />);
     expect(
       await screen.findByText(
-        "Administra endpoints con formularios claros y completos."
+        "Administra endpoints y versiones con un flujo claro."
       )
     ).toBeInTheDocument();
+    expect(screen.getByText("Nuevo endpoint")).toBeInTheDocument();
   });
 });

@@ -18,6 +18,13 @@ type SpecSummary = {
   name: string;
 };
 
+type SpecItem = {
+  path: string;
+  name: string;
+  version: string;
+  plural: string;
+};
+
 type FieldForm = {
   name: string;
   type: string;
@@ -114,8 +121,23 @@ function Toggle({
   );
 }
 
+function nextVersion(versions: string[]) {
+  const numbers = versions
+    .map((version) => Number.parseInt(version.replace(/\D/g, ""), 10))
+    .filter((value) => !Number.isNaN(value));
+  const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+  return `v${next}`;
+}
+
+function buildVersionPath(path: string, version: string) {
+  const parts = path.split("/");
+  const filename = parts.pop() ?? "endpoint.json";
+  const base = filename.replace(/_v\\d+\\.json$/i, "").replace(/\\.json$/i, "");
+  return [...parts, `${base}_${version}.json`].join("/");
+}
+
 export default function ScaffoldStudio() {
-  const [specs, setSpecs] = useState<SpecSummary[]>([]);
+  const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
   const [tagsInput, setTagsInput] = useState(spec.tags.join(", "));
@@ -125,7 +147,36 @@ export default function ScaffoldStudio() {
   });
   const [isBusy, setIsBusy] = useState(false);
 
-  const canRun = useMemo(() => specPath.trim().length > 0, [specPath]);
+  const existingPaths = useMemo(
+    () => new Set(specItems.map((item) => item.path)),
+    [specItems]
+  );
+  const isExisting = existingPaths.has(specPath);
+  const primaryLabel = isExisting ? "Guardar cambios" : "Crear endpoint";
+
+  const groupedSpecs = useMemo(() => {
+    const groups = new Map<string, SpecItem[]>();
+    specItems.forEach((item) => {
+      const key = item.name || item.plural || item.path;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)?.push(item);
+    });
+    return Array.from(groups.entries()).map(([name, items]) => ({
+      name,
+      items: [...items].sort((a, b) => a.version.localeCompare(b.version)),
+    }));
+  }, [specItems]);
+
+  const currentGroup = useMemo(() => {
+    if (!specPath) {
+      return null;
+    }
+    return groupedSpecs.find((group) =>
+      group.items.some((item) => item.path === specPath)
+    );
+  }, [groupedSpecs, specPath]);
 
   useEffect(() => {
     loadSpecs();
@@ -138,7 +189,31 @@ export default function ScaffoldStudio() {
   const loadSpecs = async () => {
     try {
       const data = await fetchJson("/specs");
-      setSpecs(data.specs ?? []);
+      const list: SpecSummary[] = data.specs ?? [];
+      const detailed = await Promise.all(
+        list.map(async (item) => {
+          try {
+            const detail = await fetchJson(
+              `/specs/read?path=${encodeURIComponent(item.path)}`
+            );
+            return {
+              path: item.path,
+              name: detail.spec.name ?? item.name,
+              version: detail.spec.version ?? "v1",
+              plural: detail.spec.plural ?? item.name,
+            } as SpecItem;
+          } catch (error) {
+            setStatus({ tone: "error", message: String(error) });
+            return {
+              path: item.path,
+              name: item.name,
+              version: "v1",
+              plural: item.name,
+            } as SpecItem;
+          }
+        })
+      );
+      setSpecItems(detailed);
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
     }
@@ -153,6 +228,35 @@ export default function ScaffoldStudio() {
       setStatus({ tone: "success", message: "Spec loaded." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
+    }
+  };
+
+  const startNewEndpoint = () => {
+    setSpecPath("");
+    setSpec(emptySpec());
+    setTagsInput(emptySpec().tags.join(", "));
+  };
+
+  const createNewVersion = async (base: SpecItem) => {
+    try {
+      setIsBusy(true);
+      const data = await fetchJson(
+        `/specs/read?path=${encodeURIComponent(base.path)}`
+      );
+      const baseSpec = data.spec as SpecForm;
+      const versions = groupedSpecs
+        .find((group) => group.name === base.name)
+        ?.items.map((item) => item.version) ?? [baseSpec.version];
+      const newVersion = nextVersion(versions);
+      const newPath = buildVersionPath(base.path, newVersion);
+      setSpecPath(newPath);
+      setSpec({ ...baseSpec, version: newVersion });
+      setTagsInput((baseSpec.tags ?? []).join(", "));
+      setStatus({ tone: "success", message: "New version ready." });
+    } catch (error) {
+      setStatus({ tone: "error", message: String(error) });
+    } finally {
+      setIsBusy(false);
     }
   };
 
@@ -173,10 +277,10 @@ export default function ScaffoldStudio() {
     [parsedTags, spec]
   );
 
-  const saveSpec = async () => {
-    if (!canRun) {
-      setStatus({ tone: "error", message: "Missing spec path." });
-      return false;
+  const saveAndGenerate = async () => {
+    if (!specPath.trim()) {
+      setStatus({ tone: "error", message: "Spec path is required." });
+      return;
     }
     try {
       setIsBusy(true);
@@ -184,47 +288,58 @@ export default function ScaffoldStudio() {
         method: "POST",
         body: JSON.stringify({ path: specPath, spec: specPayload }),
       });
+      const action = isExisting ? "modify" : "create";
+      await fetchJson(`/scaffold/${action}`, {
+        method: "POST",
+        body: JSON.stringify({ spec_path: specPath }),
+      });
       await loadSpecs();
-      setStatus({ tone: "success", message: "Spec saved." });
-      return true;
+      setStatus({ tone: "success", message: "Changes saved and generated." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
-      return false;
     } finally {
       setIsBusy(false);
     }
   };
 
-  const runAction = async (
-    action: "create" | "modify" | "sync" | "remove",
-    withSave = true
-  ) => {
-    if (!canRun) {
-      setStatus({ tone: "error", message: "Missing spec path." });
+  const runSync = async (direction: "to-code" | "from-code") => {
+    if (!specPath.trim()) {
+      setStatus({ tone: "error", message: "Spec path is required." });
       return;
     }
     try {
       setIsBusy(true);
-      if (withSave) {
-        const saved = await saveSpec();
-        if (!saved) {
-          return;
-        }
-      }
-      await fetchJson(`/scaffold/${action}`, {
+      await fetchJson(`/scaffold/sync-${direction}`, {
         method: "POST",
-        body: JSON.stringify({
-          spec_path: specPath,
-          delete_spec: action === "remove",
-        }),
+        body: JSON.stringify({ spec_path: specPath }),
       });
       await loadSpecs();
-      if (action === "remove") {
-        setSpecPath("");
-        setSpec(emptySpec());
-        setTagsInput(emptySpec().tags.join(", "));
+      setStatus({ tone: "success", message: `Sync ${direction} completed.` });
+    } catch (error) {
+      setStatus({ tone: "error", message: String(error) });
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const removeSpec = async (path: string) => {
+    const ok = window.confirm(
+      `Delete ${path}? This removes the spec and generated code.`
+    );
+    if (!ok) {
+      return;
+    }
+    try {
+      setIsBusy(true);
+      await fetchJson("/scaffold/remove", {
+        method: "POST",
+        body: JSON.stringify({ spec_path: path, delete_spec: true }),
+      });
+      if (specPath === path) {
+        startNewEndpoint();
       }
-      setStatus({ tone: "success", message: `Action ${action} completed.` });
+      await loadSpecs();
+      setStatus({ tone: "success", message: "Version deleted." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
     } finally {
@@ -258,17 +373,6 @@ export default function ScaffoldStudio() {
       ],
     }));
 
-  const confirmRemove = async (path: string) => {
-    const ok = window.confirm(
-      `Remove ${path}? This deletes the spec and generated code.`
-    );
-    if (!ok) {
-      return;
-    }
-    setSpecPath(path);
-    await runAction("remove", false);
-  };
-
   return (
     <main className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-10">
       <div className="pointer-events-none absolute left-10 top-16 hidden h-24 w-24 rounded-full bg-accent/30 blur-2xl sm:block" />
@@ -281,15 +385,15 @@ export default function ScaffoldStudio() {
             <div className="flex items-center gap-3">
               <Badge variant="accent">Scaffold Studio</Badge>
               <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                API-first
+                UX-first
               </span>
             </div>
             <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Administra endpoints con formularios claros y completos.
+              Administra endpoints y versiones con un flujo claro.
             </h1>
             <p className="max-w-2xl text-base text-muted-foreground">
-              Edita specs con widgets dedicados, define campos y dispara acciones
-              create/modify/sync/remove sin tocar JSON manualmente.
+              Crea, edita y versiona endpoints con formularios guiados. Cada
+              cambio guarda el spec y genera el codigo automaticamente.
             </p>
           </div>
           <Card className="animate-fade-in w-full max-w-sm">
@@ -316,52 +420,86 @@ export default function ScaffoldStudio() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
           <Card className="animate-fade-up">
-            <CardHeader>
-              <CardTitle>Endpoints</CardTitle>
-              <CardDescription>
-                Selecciona un spec para editarlo o eliminarlo.
-              </CardDescription>
+            <CardHeader className="space-y-4">
+              <div>
+                <CardTitle>Endpoints</CardTitle>
+                <CardDescription>
+                  Selecciona una version para editar o eliminar.
+                </CardDescription>
+              </div>
+              <Button onClick={startNewEndpoint} variant="default" size="sm">
+                Nuevo endpoint
+              </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {specs.length === 0 && (
+              <div className="space-y-4">
+                {groupedSpecs.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
-                    No hay specs cargados todavia.
+                    No hay endpoints creados todavia.
                   </div>
                 )}
-                {specs.map((item, index) => (
+                {groupedSpecs.map((group, index) => (
                   <div
-                    key={item.path}
+                    key={group.name}
                     style={{ animationDelay: `${index * 60}ms` }}
-                    className={cn(
-                      "animate-fade-up rounded-2xl border px-4 py-3",
-                      item.path === specPath
-                        ? "border-primary/60 bg-primary/10"
-                        : "border-border/60 bg-background/70"
-                    )}
+                    className="animate-fade-up rounded-3xl border border-border/60 bg-background/60 p-4"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-medium text-foreground">{item.name}</div>
-                        <div className="text-xs text-muted-foreground">{item.path}</div>
+                        <div className="text-base font-semibold text-foreground">
+                          {group.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {group.items.length} version(es)
+                        </div>
                       </div>
-                      <Badge>Spec</Badge>
-                    </div>
-                    <div className="mt-3 flex gap-2">
                       <Button
                         size="sm"
                         variant="secondary"
-                        onClick={() => selectSpec(item.path)}
+                        onClick={() => createNewVersion(group.items[0])}
+                        disabled={isBusy}
                       >
-                        Edit
+                        Nueva version
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => confirmRemove(item.path)}
-                      >
-                        Delete
-                      </Button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.path}
+                          className={cn(
+                            "flex items-center justify-between rounded-2xl border px-3 py-2 text-sm",
+                            item.path === specPath
+                              ? "border-primary/60 bg-primary/10"
+                              : "border-border/60 bg-background/80"
+                          )}
+                        >
+                          <div>
+                            <div className="font-medium text-foreground">
+                              {item.version}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {item.path}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => selectSpec(item.path)}
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => removeSpec(item.path)}
+                              disabled={isBusy}
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -380,51 +518,88 @@ export default function ScaffoldStudio() {
 
           <Card className="animate-fade-up">
             <CardHeader>
-              <CardTitle>Spec editor</CardTitle>
+              <CardTitle>{isExisting ? "Editar endpoint" : "Crear endpoint"}</CardTitle>
               <CardDescription>
-                Guarda el spec y aplica acciones con los botones de abajo.
+                {isExisting
+                  ? "Guarda cambios para generar el codigo."
+                  : "Define el spec y crea el endpoint."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Input
-                  placeholder="specs/my-resource.json"
-                  value={specPath}
-                  onChange={(event) => setSpecPath(event.target.value)}
-                />
-                <Input
-                  placeholder="Version (v1)"
-                  value={spec.version}
-                  onChange={(event) => updateSpec({ version: event.target.value })}
-                />
-                <Input
-                  placeholder="Name"
-                  value={spec.name}
-                  onChange={(event) => updateSpec({ name: event.target.value })}
-                />
-                <Input
-                  placeholder="Plural"
-                  value={spec.plural}
-                  onChange={(event) => updateSpec({ plural: event.target.value })}
-                />
-                <Input
-                  placeholder="Table name"
-                  value={spec.table_name}
-                  onChange={(event) => updateSpec({ table_name: event.target.value })}
-                />
-                <Input
-                  placeholder="Tags (comma separated)"
-                  value={tagsInput}
-                  onChange={(event) => setTagsInput(event.target.value)}
-                />
-              </div>
+              <Section title="Identidad">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <FieldBlock label="Ruta del spec">
+                    <Input
+                      placeholder="specs/my-endpoint.json"
+                      value={specPath}
+                      onChange={(event) => setSpecPath(event.target.value)}
+                    />
+                    <HelperText>
+                      Ruta donde se guardara el JSON del spec.
+                    </HelperText>
+                  </FieldBlock>
+                  <FieldBlock label="Version">
+                    <Input
+                      placeholder="v1"
+                      value={spec.version}
+                      onChange={(event) =>
+                        updateSpec({ version: event.target.value })
+                      }
+                    />
+                    {currentGroup?.items.length ? (
+                      <HelperText>
+                        Versiones disponibles:{" "}
+                        {currentGroup.items.map((item) => item.version).join(", ")}
+                      </HelperText>
+                    ) : (
+                      <HelperText>Define la version que deseas editar.</HelperText>
+                    )}
+                  </FieldBlock>
+                  <FieldBlock label="Nombre">
+                    <Input
+                      placeholder="widget"
+                      value={spec.name}
+                      onChange={(event) => updateSpec({ name: event.target.value })}
+                    />
+                  </FieldBlock>
+                  <FieldBlock label="Plural">
+                    <Input
+                      placeholder="widgets"
+                      value={spec.plural}
+                      onChange={(event) => updateSpec({ plural: event.target.value })}
+                    />
+                  </FieldBlock>
+                  <FieldBlock label="Tabla">
+                    <Input
+                      placeholder="widgets"
+                      value={spec.table_name}
+                      onChange={(event) =>
+                        updateSpec({ table_name: event.target.value })
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock label="Tags">
+                    <Input
+                      placeholder="Widgets, Catalog"
+                      value={tagsInput}
+                      onChange={(event) => setTagsInput(event.target.value)}
+                    />
+                    <HelperText>Separados por coma.</HelperText>
+                  </FieldBlock>
+                </div>
+              </Section>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Section title="Security">
+                <Section title="Seguridad">
                   <ToggleRow
                     label="Auth required"
                     checked={spec.auth_required}
-                    onChange={(value) => updateSpec({ auth_required: value })}
+                    onChange={(value) =>
+                      updateSpec({
+                        auth_required: value,
+                        tenant_scoped: value ? spec.tenant_scoped : false,
+                      })
+                    }
                   />
                   <ToggleRow
                     label="Tenant scoped"
@@ -437,7 +612,7 @@ export default function ScaffoldStudio() {
                     }
                   />
                 </Section>
-                <Section title="Behavior">
+                <Section title="Comportamiento">
                   <ToggleRow
                     label="Soft delete"
                     checked={spec.soft_delete}
@@ -463,12 +638,12 @@ export default function ScaffoldStudio() {
                 </Section>
               </div>
 
-              <Section title="Endpoints">
-                <div className="grid gap-3 md:grid-cols-3">
+              <Section title="Rutas disponibles">
+                <div className="grid gap-3 md:grid-cols-2">
                   {Object.entries(spec.endpoints).map(([key, value]) => (
                     <ToggleRow
                       key={key}
-                      label={key}
+                      label={key.toUpperCase()}
                       checked={value}
                       onChange={(checked) =>
                         updateSpec({
@@ -480,7 +655,7 @@ export default function ScaffoldStudio() {
                 </div>
               </Section>
 
-              <Section title="Fields">
+              <Section title="Campos">
                 <div className="space-y-3">
                   {spec.fields.map((field, index) => (
                     <div
@@ -543,38 +718,32 @@ export default function ScaffoldStudio() {
                 </Button>
               </Section>
 
-              <Section title="Actions">
+              <Section title="Acciones principales">
                 <div className="flex flex-wrap gap-3">
-                  <Button onClick={saveSpec} disabled={!canRun || isBusy}>
-                    Save spec
+                  <Button onClick={saveAndGenerate} disabled={isBusy}>
+                    {primaryLabel}
                   </Button>
+                </div>
+              </Section>
+
+              <Section title="Sync avanzado">
+                <HelperText>
+                  Usa estas opciones si editaste manualmente el codigo o el spec.
+                </HelperText>
+                <div className="mt-3 flex flex-wrap gap-3">
                   <Button
-                    onClick={() => runAction("create")}
-                    disabled={!canRun || isBusy}
                     variant="secondary"
+                    onClick={() => runSync("to-code")}
+                    disabled={isBusy}
                   >
-                    Create
+                    Sync spec -&gt; codigo
                   </Button>
                   <Button
-                    onClick={() => runAction("modify")}
-                    disabled={!canRun || isBusy}
                     variant="secondary"
+                    onClick={() => runSync("from-code")}
+                    disabled={isBusy}
                   >
-                    Modify
-                  </Button>
-                  <Button
-                    onClick={() => runAction("sync")}
-                    disabled={!canRun || isBusy}
-                    variant="secondary"
-                  >
-                    Sync
-                  </Button>
-                  <Button
-                    onClick={() => runAction("remove", false)}
-                    disabled={!canRun || isBusy}
-                    variant="outline"
-                  >
-                    Remove
+                    Sync codigo -&gt; spec
                   </Button>
                 </div>
               </Section>
@@ -595,12 +764,33 @@ function Section({
 }) {
   return (
     <div className="rounded-3xl border border-border/60 bg-card/70 p-5">
-      <div className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {title}
       </div>
       {children}
     </div>
   );
+}
+
+function FieldBlock({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function HelperText({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-muted-foreground">{children}</p>;
 }
 
 function ToggleRow({
@@ -613,7 +803,7 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+    <label className="flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/60 px-3 py-2 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <Toggle checked={checked} onChange={onChange} />
     </label>

@@ -38,5 +38,6 @@ NEXT_PUBLIC_SCAFFOLD_API_URL=http://127.0.0.1:8001
 - `POST /specs/write`
 - `POST /scaffold/create`
 - `POST /scaffold/modify`
-- `POST /scaffold/sync`
+- `POST /scaffold/sync-to-code`
+- `POST /scaffold/sync-from-code`
 - `POST /scaffold/remove`
