@@ -1,0 +1,39 @@
+{
+  "v1": [
+    {
+      "name": "tenants",
+      "module": "app.routers.v1.tenants",
+      "requires_auth": false,
+      "requires_tenants": true,
+      "enabled": true
+    },
+    {
+      "name": "roles",
+      "module": "app.routers.v1.roles",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "permissions",
+      "module": "app.routers.v1.permissions",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "users",
+      "module": "app.routers.v1.users",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "auth",
+      "module": "app.routers.v1.auth",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    }
+  ]
+}

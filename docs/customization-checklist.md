@@ -25,6 +25,7 @@ Use this list when adapting the template to a new project or domain.
 
 ## 4. Routers & Schemas
 - [ ] Duplicate `app/routers/v1/tenants.py` as a baseline for new resources.
+- [ ] Or use the scaffold tool (`docs/scaffold-guide.md`) to generate resources from specs.
 - [ ] Create Pydantic schemas in `app/schemas/`.
 - [ ] Register the new router inside `app/main.py`.
 - [ ] Tag routes thoughtfully so permissions make sense (`tags=['Inventory']`, etc.).

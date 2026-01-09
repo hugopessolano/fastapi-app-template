@@ -1,0 +1,123 @@
+import json
+import tempfile
+import unittest
+from pathlib import Path
+
+from tools.scaffold.scaffold import create_resource, sync_resource
+
+
+def write_file(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def read_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def create_minimal_repo(root: Path) -> None:
+    write_file(
+        root / "app" / "database" / "models" / "__init__.py",
+        "from .base_models import Base\n\n__all__ = [\"Base\"]\n",
+    )
+    write_file(root / "app" / "routers" / "v1" / "__init__.py", "API_PREFIX = \"/v1\"\n")
+
+
+def create_spec(root: Path, resource: str) -> Path:
+    spec = {
+        "version": "v1",
+        "name": resource,
+        "plural": f"{resource}s",
+        "table_name": f"{resource}s",
+        "tags": [resource.capitalize() + "s"],
+        "auth_required": True,
+        "tenant_scoped": False,
+        "soft_delete": True,
+        "pagination": True,
+        "ordering": True,
+        "fields": [
+            {"name": "name", "type": "String", "nullable": False, "unique": False}
+        ],
+        "endpoints": {
+            "list": True,
+            "get": True,
+            "create": True,
+            "update": True,
+            "delete": True,
+        },
+        "tests": {"enabled": True},
+    }
+    path = root / "specs" / f"{resource}s.json"
+    write_file(path, json.dumps(spec, indent=2))
+    return path
+
+
+class TestScaffold(unittest.TestCase):
+    def test_create_generates_files_and_registry(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = create_spec(root, "widget")
+
+            create_resource(root, spec_path)
+
+            model_path = root / "app" / "database" / "models" / "widgets_models.py"
+            schema_path = root / "app" / "schemas" / "widgets_schemas.py"
+            logic_path = root / "app" / "endpoints_logic" / "v1" / "widgets.py"
+            router_path = root / "app" / "routers" / "v1" / "widgets.py"
+            test_path = root / "tests" / "test_widgets_modules.py"
+            registry_path = root / "app" / "routers" / "registry_data.json"
+
+            self.assertTrue(model_path.exists())
+            self.assertTrue(schema_path.exists())
+            self.assertTrue(logic_path.exists())
+            self.assertTrue(router_path.exists())
+            self.assertTrue(test_path.exists())
+            self.assertTrue(registry_path.exists())
+
+            registry = read_json(registry_path)
+            self.assertIn("v1", registry)
+            self.assertTrue(
+                any(item["name"] == "widgets" for item in registry["v1"])
+            )
+
+    def test_sync_updates_spec_from_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = create_spec(root, "widget")
+            create_resource(root, spec_path)
+
+            model_path = root / "app" / "database" / "models" / "widgets_models.py"
+            content = model_path.read_text(encoding="utf-8")
+            target = "name = Column(String, nullable=False, unique=False)\n"
+            updated = content.replace(
+                target,
+                target + "    status = Column(String, nullable=True, unique=False)\n",
+            )
+            model_path.write_text(updated, encoding="utf-8")
+
+            sync_resource(root, spec_path)
+
+            spec = read_json(spec_path)
+            field_names = {field["name"] for field in spec["fields"]}
+            self.assertIn("status", field_names)
+
+    def test_sync_updates_code_from_spec(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = create_spec(root, "widget")
+            create_resource(root, spec_path)
+
+            spec = read_json(spec_path)
+            spec["fields"].append(
+                {"name": "size", "type": "String", "nullable": True, "unique": False}
+            )
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            sync_resource(root, spec_path)
+
+            model_path = root / "app" / "database" / "models" / "widgets_models.py"
+            content = model_path.read_text(encoding="utf-8")
+            self.assertIn("size = Column(String, nullable=True, unique=False)", content)

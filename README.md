@@ -114,5 +114,6 @@ Tips:
 - `docs/auth-and-tenant-context-guide.md`: how auth and tenant scoping are separated.
 - `docs/retries-and-rate-limits-guide.md`: retry strategy and opt-in rate limiting.
 - `docs/cache-guide.md`: cache helpers and usage patterns.
+- `docs/scaffold-guide.md`: scaffold tool for specs, create/modify/sync, and router registry.
 
 Use the issues tracker or your team's knowledge base to capture improvement ideas as you work with the template.

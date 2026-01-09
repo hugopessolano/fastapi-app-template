@@ -52,15 +52,15 @@ Expansion de lo que se necesita
 
 ## 4) Creacion manual de endpoints/schemas/modelos
 Estado actual
-- No hay generadores ni scripts. Agregar un recurso implica crear modelo, schema, router, registrar en `app/main.py` y posiblemente permisos.
-- La guia actual es manual (ej. copiar `tenants` y ajustar).
+- Hay un scaffold opcional en `tools/scaffold/` que crea recursos desde specs JSON.
+- El registro de routers vive en `app/routers/registry_data.json`.
 
 Implicaciones
-- Alto costo de repeticion y riesgo de inconsistencias.
-- Mayor probabilidad de olvidar pasos (migrations, registro, permisos, docs).
+- Se reducen pasos manuales y se centraliza la definicion de recursos.
+- Las modificaciones manuales pueden sincronizarse con `sync`.
 
 Expansion de lo que se necesita
-- Automatizacion que genere estructura completa y consistente (modelo, schema, router, registro, tests/documentacion).
+- Validar que el sync cubra los cambios habituales y ajustar el parser si hace falta.
 
 
 ## 5) Alembic no preparado para uso sencillo
