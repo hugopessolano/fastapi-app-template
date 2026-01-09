@@ -16,7 +16,7 @@ from app.database.models import (
 )
 from app.database.soft_delete import (
     apply_soft_delete_filter,
-    soft_delete_store,
+    soft_delete_by_id,
     query_with_deleted,
 )
 
@@ -71,7 +71,7 @@ class TestSoftDelete(unittest.TestCase):
         )
         self.db.commit()
 
-        result = soft_delete_store(self.db, store.id)
+        result = soft_delete_by_id(self.db, Stores, store.id)
         self.assertTrue(result)
 
         self.assertIsNone(self.db.query(Stores).filter(Stores.id == store.id).first())
@@ -99,3 +99,22 @@ class TestSoftDelete(unittest.TestCase):
         self.assertIsNotNone(user_role_deleted.deleted_at)
 
         self.assertIsNotNone(self.db.query(Permissions).filter(Permissions.id == permission.id).first())
+
+    def test_soft_delete_user_does_not_delete_store(self) -> None:
+        store = Stores(name="Keep", address="Address")
+        user = Users(name="User", email="user2@example.com", password="pw")
+        user_store = UserStores(user=user, store=store)
+
+        self.db.add_all([store, user, user_store])
+        self.db.commit()
+
+        result = soft_delete_by_id(self.db, Users, user.id)
+        self.assertTrue(result)
+
+        store_active = self.db.query(Stores).filter(Stores.id == store.id).first()
+        self.assertIsNotNone(store_active)
+
+        user_store_deleted = query_with_deleted(self.db, UserStores).filter(
+            UserStores.user_id == user.id
+        ).first()
+        self.assertIsNotNone(user_store_deleted.deleted_at)

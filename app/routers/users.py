@@ -19,7 +19,7 @@ from app.routers.utils import (
 )
 from app.auth.hashing import hash_string
 from app.auth.context import AuthContext, get_auth_context
-from app.database.soft_delete import soft_delete_user
+from app.database.soft_delete import soft_delete_by_id
 from app.logging import child_logger
 
 router = APIRouter(
@@ -266,7 +266,7 @@ async def delete_user(
     auth: AuthContext = Depends(get_auth_context),
 ):
     ensure_user_admin(auth)
-    deleted = soft_delete_user(db, user_id)
+    deleted = soft_delete_by_id(db, Users, user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found")
 

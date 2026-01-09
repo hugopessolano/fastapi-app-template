@@ -7,7 +7,7 @@ from app.logging import child_logger
 from app.schemas.users_schemas import BasePermission, PermissionCreate, PermissiontUpdate
 from app.routers.utils import calculate_next_and_last_pages, order_by_parameter
 from typing import List, Literal
-from app.database.soft_delete import soft_delete_permission
+from app.database.soft_delete import soft_delete_by_id
 
 router = APIRouter(
     prefix='/permissions',
@@ -95,7 +95,7 @@ async def delete_permission(permission_id: str,
                             db: Session = Depends(get_db),
                             _auth: AuthContext = Depends(get_auth_context)
                             ):
-    deleted = soft_delete_permission(db, permission_id)
+    deleted = soft_delete_by_id(db, Permissions, permission_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Permission not found")
     router_logger.bind(

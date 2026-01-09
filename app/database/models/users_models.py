@@ -26,8 +26,16 @@ class Users(Base):
     password = Column(String, nullable=False)
     cross_store_allowed = Column(Boolean, default=False)
 
-    roles: Mapped[List['UserRoles']] = relationship('UserRoles', back_populates='user')
-    user_stores: Mapped[List['UserStores']] = relationship('UserStores', back_populates='user')
+    roles: Mapped[List['UserRoles']] = relationship(
+        'UserRoles',
+        back_populates='user',
+        info={"soft_delete_cascade": True},
+    )
+    user_stores: Mapped[List['UserStores']] = relationship(
+        'UserStores',
+        back_populates='user',
+        info={"soft_delete_cascade": True},
+    )
     stores: Mapped[List['Stores']] = relationship('Stores', secondary='user_stores', back_populates='users')
 
     def __repr__(self):
@@ -40,8 +48,16 @@ class Roles(Base):
     name = Column(String, nullable=False)
     store_id = Column(String, ForeignKey('stores.id'))
 
-    users: Mapped[List['UserRoles']] = relationship('UserRoles', back_populates='role')
-    permissions: Mapped[List['RolePermissions']] = relationship('RolePermissions', back_populates='role')
+    users: Mapped[List['UserRoles']] = relationship(
+        'UserRoles',
+        back_populates='role',
+        info={"soft_delete_cascade": True},
+    )
+    permissions: Mapped[List['RolePermissions']] = relationship(
+        'RolePermissions',
+        back_populates='role',
+        info={"soft_delete_cascade": True},
+    )
     store = relationship("Stores", back_populates="roles")
 
     def __repr__(self):
@@ -55,7 +71,11 @@ class Permissions(Base):
     state = Column(Boolean, nullable=False)
     description = Column(String, nullable=True)
 
-    roles: Mapped[List['RolePermissions']] = relationship('RolePermissions', back_populates='permission')
+    roles: Mapped[List['RolePermissions']] = relationship(
+        'RolePermissions',
+        back_populates='permission',
+        info={"soft_delete_cascade": True},
+    )
 
     def __repr__(self):
         return f'Permissions(id={self.id}, name={self.name}, state={self.state}, description={self.description})'

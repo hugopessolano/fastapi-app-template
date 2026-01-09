@@ -7,7 +7,7 @@ from typing import List, Literal
 from app.routers.utils import validate_ids, convert_role_to_baserole, filter_by_store, calculate_next_and_last_pages, order_by_parameter
 from app.auth.context import AuthContext, get_auth_context
 from app.logging import child_logger
-from app.database.soft_delete import soft_delete_role
+from app.database.soft_delete import soft_delete_by_id
 
 
 router = APIRouter(
@@ -189,7 +189,7 @@ async def delete_role(role_id:str,
     if role is None:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    deleted = soft_delete_role(db, role_id)
+    deleted = soft_delete_by_id(db, Roles, role_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Role not found")
     router_logger.bind(

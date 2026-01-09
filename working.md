@@ -26,8 +26,8 @@ Estado actual
 - Existe `deleted_at` en `Base` y todos los modelos lo heredan (`app/database/models/base_models.py`).
 - Las consultas filtran soft delete por defecto via `apply_soft_delete_filter` (`app/database/soft_delete.py`).
 - Los endpoints usan soft delete y cascada:
-  - `stores` marca store, roles, user_roles, role_permissions, user_stores (`app/database/soft_delete.py`).
-  - `users`, `roles`, `permissions` aplican soft delete y cascada (`app/database/soft_delete.py`).
+  - La cascada es opt-in por metadata en relaciones `info={"soft_delete_cascade": True}`.
+  - El helper `soft_delete_by_id` aplica la cascada segun esas relaciones.
 - La vista `stores_user_counts` excluye registros con `deleted_at`.
 
 Implicaciones

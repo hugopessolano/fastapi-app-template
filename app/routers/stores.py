@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.database.models import Stores
-from app.database.soft_delete import soft_delete_store
+from app.database.soft_delete import soft_delete_by_id
 from app.schemas.stores_schemas import BaseStore, StoreCreate, StoreUpdate
 from app.routers.utils import filter_by_store, calculate_next_and_last_pages, order_by_parameter
 from app.auth.context import AuthContext, get_auth_context
@@ -116,7 +116,7 @@ async def delete_store(store_id: str,
     if not existing_store:
         raise HTTPException(status_code=404, detail="Store not found")
 
-    deleted = soft_delete_store(db, store_id)
+    deleted = soft_delete_by_id(db, Stores, store_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Store not found")
     router_logger.bind(

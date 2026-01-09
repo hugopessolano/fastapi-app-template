@@ -11,7 +11,15 @@ class Stores(Base):
     name = Column(String, nullable=False)
     address = Column(String, nullable=False)
 
-    user_stores: Mapped[List['UserStores']] = relationship('UserStores', back_populates='store')
+    user_stores: Mapped[List['UserStores']] = relationship(
+        'UserStores',
+        back_populates='store',
+        info={"soft_delete_cascade": True},
+    )
     users: Mapped[List['Users']] = relationship('Users', secondary='user_stores', back_populates='stores')
-    roles = relationship("Roles", back_populates="store")
+    roles = relationship(
+        "Roles",
+        back_populates="store",
+        info={"soft_delete_cascade": True},
+    )
     
