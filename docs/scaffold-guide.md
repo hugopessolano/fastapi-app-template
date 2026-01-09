@@ -111,3 +111,6 @@ Sync code -> spec (edit model first):
 # add "category = Column(String, nullable=True, unique=False)" to app/database/models/widgets_models.py
 python -m tools.scaffold sync --spec specs/examples/widgets.json
 ```
+
+## 8) Optional UI
+See `docs/scaffold-ui-guide.md` to run the Scaffold UI and the internal API.

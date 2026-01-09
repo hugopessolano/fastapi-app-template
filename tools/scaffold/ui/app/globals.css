@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 1rem;
+  --background: oklch(0.98 0.02 80);
+  --foreground: oklch(0.2 0.03 35);
+  --card: oklch(0.985 0.015 75);
+  --card-foreground: oklch(0.2 0.03 35);
+  --popover: oklch(0.99 0.015 75);
+  --popover-foreground: oklch(0.2 0.03 35);
+  --primary: oklch(0.6 0.16 185);
+  --primary-foreground: oklch(0.98 0.02 80);
+  --secondary: oklch(0.92 0.05 60);
+  --secondary-foreground: oklch(0.24 0.04 40);
+  --muted: oklch(0.94 0.03 70);
+  --muted-foreground: oklch(0.45 0.03 45);
+  --accent: oklch(0.78 0.13 60);
+  --accent-foreground: oklch(0.2 0.03 35);
+  --destructive: oklch(0.6 0.2 25);
+  --border: oklch(0.88 0.02 75);
+  --input: oklch(0.92 0.02 80);
+  --ring: oklch(0.68 0.16 185);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+  body {
+    @apply bg-background text-foreground;
+    background-image: radial-gradient(
+        circle at top left,
+        oklch(0.98 0.04 90),
+        transparent 55%
+      ),
+      radial-gradient(circle at 20% 80%, oklch(0.96 0.06 55), transparent 50%),
+      radial-gradient(circle at 90% 10%, oklch(0.95 0.08 200), transparent 45%);
+    background-attachment: fixed;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s ease both;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
