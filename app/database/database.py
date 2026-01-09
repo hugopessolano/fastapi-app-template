@@ -1,8 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 from app.config import get_settings
+from app.database.soft_delete import apply_soft_delete_filter
 
 settings = get_settings()
 DATABASE_URL = settings.database_url
@@ -20,6 +21,7 @@ engine_kwargs = {"connect_args": connect_args} if connect_args else {}
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+apply_soft_delete_filter(Session)
 
 #Session = sessionmaker(engine)
 

@@ -6,6 +6,7 @@ This template provides a didactic starting point for FastAPI projects. It ships 
 - Structured logging (stdout + SQLite) and a sample SQL view for reporting.
 - Seed helpers to create a default admin user and a base store.
 - Optional connector to secondary databases via `EXTERNAL_DB_URL`.
+- Soft delete support with `deleted_at` and automatic query filtering.
 - Docker workflow plus documentation to guide developers with little experience.
 
 ## Key Features

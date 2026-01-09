@@ -70,6 +70,8 @@ def get_current_user(request:Request,
         raise credentials_exception
     token:TokenData = verify_access_token(token, credentials_exception)
     user = db.query(Users).filter(Users.id == token.id).first()
+    if user is None:
+        raise credentials_exception
     
     route = request.scope.get("route")
     

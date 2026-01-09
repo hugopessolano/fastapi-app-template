@@ -11,7 +11,13 @@ class TimestampMixin:
         return Column(DateTime, default=func.now(), onupdate=func.now())
 
 
-class Base(DeclarativeBase, TimestampMixin):
+class SoftDeleteMixin:
+    @declared_attr
+    def deleted_at(cls):
+        return Column(DateTime, nullable=True)
+
+
+class Base(DeclarativeBase, TimestampMixin, SoftDeleteMixin):
     pass
 
 

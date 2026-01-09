@@ -7,6 +7,7 @@ from typing import List, Literal
 from app.routers.utils import validate_ids, convert_role_to_baserole, filter_by_store, calculate_next_and_last_pages, order_by_parameter
 from app.auth.context import AuthContext, get_auth_context
 from app.logging import child_logger
+from app.database.soft_delete import soft_delete_role
 
 
 router = APIRouter(
@@ -181,17 +182,16 @@ async def delete_role(role_id:str,
                       auth: AuthContext = Depends(get_auth_context)
                       ):
     role_query = db.query(Roles).filter(Roles.id == role_id)
-
     if not auth.cross_store_allowed:
         role_query = filter_by_store(role_query, Roles, auth.allowed_store_ids)
 
     role = role_query.first()
-
     if role is None:
         raise HTTPException(status_code=404, detail="Role not found")
-    
-    db.delete(role)
-    db.commit()
+
+    deleted = soft_delete_role(db, role_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Role not found")
     router_logger.bind(
         action="delete",
         role_id=role_id,

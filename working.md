@@ -23,15 +23,16 @@ Expansion de lo que se necesita
 
 ## 2) DELETE fisico vs borrado logico
 Estado actual
-- No existe `deleted_at` en `Base` ni en los modelos (`app/database/models/base_models.py`).
-- Los endpoints usan delete fisico:
-  - `stores` elimina store y tablas dependientes (`app/routers/stores.py`).
-  - `users`, `roles`, `permissions` eliminan registros directamente (`app/routers/users.py`, `app/routers/roles.py`, `app/routers/permissions.py`).
-- Las consultas no filtran por borrado logico (no hay helper ni criterio global).
+- Existe `deleted_at` en `Base` y todos los modelos lo heredan (`app/database/models/base_models.py`).
+- Las consultas filtran soft delete por defecto via `apply_soft_delete_filter` (`app/database/soft_delete.py`).
+- Los endpoints usan soft delete y cascada:
+  - `stores` marca store, roles, user_roles, role_permissions, user_stores (`app/database/soft_delete.py`).
+  - `users`, `roles`, `permissions` aplican soft delete y cascada (`app/database/soft_delete.py`).
+- La vista `stores_user_counts` excluye registros con `deleted_at`.
 
 Implicaciones
-- No hay recuperacion posible ni trazabilidad de eliminaciones.
-- Se rompe integridad historica y no hay estrategia de "soft delete" en cascada.
+- Las eliminaciones quedan trazadas y recuperables.
+- Las queries activas excluyen registros borrados sin necesidad de filtros manuales.
 
 Expansion de lo que se necesita
 - Agregar `deleted_at` al modelo base y propagarlo en todos los modelos.

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.database.models import Stores, UserStores, Roles, UserRoles, RolePermissions
+from app.database.models import Stores
+from app.database.soft_delete import soft_delete_store
 from app.schemas.stores_schemas import BaseStore, StoreCreate, StoreUpdate
 from app.routers.utils import filter_by_store, calculate_next_and_last_pages, order_by_parameter
 from app.auth.context import AuthContext, get_auth_context
@@ -103,28 +104,21 @@ async def delete_store(store_id: str,
                        auth: AuthContext = Depends(get_auth_context)
                        ):
     existing_store_query = db.query(Stores).filter(Stores.id == store_id)
-    
     if not auth.cross_store_allowed:
-        existing_store_query = filter_by_store(existing_store_query, Stores, auth.allowed_store_ids, column_name="id")
-        
+        existing_store_query = filter_by_store(
+            existing_store_query,
+            Stores,
+            auth.allowed_store_ids,
+            column_name="id",
+        )
+
     existing_store = existing_store_query.first()
-    
     if not existing_store:
         raise HTTPException(status_code=404, detail="Store not found")
-    
-    db.query(UserStores).filter(UserStores.store_id == store_id).delete(synchronize_session=False)
-    
-    roles_in_store_subquery = db.query(Roles.id).filter(Roles.store_id == store_id).scalar_subquery()
-    
-    db.query(UserRoles).filter(UserRoles.role_id.in_(roles_in_store_subquery)).delete(synchronize_session=False)
-        
-    db.query(RolePermissions).filter(RolePermissions.role_id.in_(roles_in_store_subquery)).delete(synchronize_session=False)
-        
-    db.query(Roles).filter(Roles.store_id == store_id).delete(synchronize_session=False)
 
-
-    db.delete(existing_store)
-    db.commit()
+    deleted = soft_delete_store(db, store_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Store not found")
     router_logger.bind(
         action="delete",
         user_id=getattr(auth.user, "id", None),
