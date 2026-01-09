@@ -94,17 +94,16 @@ Expansion de lo que se necesita
 
 ## 7) Retries progresivos y rate limiting
 Estado actual
-- No hay middleware ni utilidades para reintentos (ej. con Tenacity) ni para rate limiting.
-- No hay politica por defecto para endpoints internos o externos.
+- Hay helpers de retry en `app/retries.py` con backoff progresivo y jitter.
+- Hay rate limiting opt-in en `app/rate_limit.py` (por IP o por usuario).
+- No existe middleware global: cada endpoint decide si aplica rate limiting.
 
 Implicaciones
-- Llamadas a servicios externos pueden fallar sin reintento.
-- La API es vulnerable a abuso o picos sin control.
+- Los reintentos son configurables y reutilizables para integraciones externas.
+- El rate limiting requiere uso explicito en cada endpoint.
 
 Expansion de lo que se necesita
-- Estrategia de retries configurable (backoff progresivo) para integraciones externas.
-- Rate limiting a nivel de app (middleware) o por router, con configuracion en `.env`.
-- Debe ser opt-in por endpoint (posibilidad de desactivar rate limiting caso a caso).
+- Definir si se necesita un backend distribuido (Redis) cuando la app escale.
 
 
 ## 8) Cacheo

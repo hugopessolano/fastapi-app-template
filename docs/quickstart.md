@@ -16,6 +16,8 @@ Key entries to review:
 - `DATABASE_URL`: defaults to SQLite. Point to Postgres/MySQL when needed.
 - `AUTH_MODE`: `built_in`, `disabled`, or `custom`.
 - `TENANTS_ENABLED`: toggle the `/v1/tenants` router on or off.
+- `RATE_LIMIT_DEFAULT_REQUESTS` / `RATE_LIMIT_DEFAULT_WINDOW_SECONDS`: defaults for opt-in rate limiting.
+- `RETRY_MAX_ATTEMPTS`: default retry attempts for external calls.
 - `AUTO_BUILD_PERMISSIONS` / `ENABLE_SEED_DATA`: keep them `true` for the first run.
 
 ## 3. Run with Docker Compose (recommended)

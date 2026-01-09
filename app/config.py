@@ -34,6 +34,12 @@ class Settings(BaseSettings):
     logging_db_level: str = Field(default="INFO")
     auth_mode: str = Field(default="built_in", description="built_in | disabled | custom")
     tenants_enabled: bool = Field(default=True)
+    rate_limit_default_requests: int = Field(default=60)
+    rate_limit_default_window_seconds: int = Field(default=60)
+    retry_max_attempts: int = Field(default=3)
+    retry_base_delay_seconds: float = Field(default=0.2)
+    retry_max_delay_seconds: float = Field(default=2.0)
+    retry_jitter_seconds: float = Field(default=0.1)
 
     @property
     def resolved_logs_db_path(self) -> str:
