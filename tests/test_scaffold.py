@@ -154,3 +154,76 @@ class TestScaffold(unittest.TestCase):
             init_content = models_init.read_text(encoding="utf-8")
             self.assertNotIn("from .widgets_models import Widgets", init_content)
             self.assertNotIn("\"Widgets\"", init_content)
+
+    def test_relations_generate_fk_and_relationships(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "sale",
+                "plural": "sales",
+                "table_name": "sales",
+                "tags": ["Sales"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "code", "type": "String", "nullable": False, "unique": True}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "relations": [
+                    {
+                        "name": "customer",
+                        "type": "belongs_to",
+                        "target": "customers",
+                        "foreign_key": "customer_id",
+                        "nullable": False,
+                        "on_delete": "restrict",
+                        "back_populates": "sales",
+                    },
+                    {
+                        "name": "items",
+                        "type": "has_many",
+                        "target": "sale_items",
+                        "back_populates": "sale",
+                        "soft_delete_cascade": True,
+                    },
+                    {
+                        "name": "products",
+                        "type": "many_to_many",
+                        "target": "products",
+                        "through": "sales_products",
+                        "back_populates": "sales",
+                    },
+                ],
+            }
+            spec_path = root / "specs" / "sales.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            model_path = root / "app" / "database" / "models" / "sales_models.py"
+            model_content = model_path.read_text(encoding="utf-8")
+            self.assertIn(
+                "customer_id = Column(String, ForeignKey(\"customers.id\"",
+                model_content,
+            )
+            self.assertIn("customer = relationship(\"Customers\"", model_content)
+            self.assertIn("items: Mapped[List[\"SaleItems\"]]", model_content)
+            self.assertIn("soft_delete_cascade", model_content)
+            self.assertIn("sales_products = Table(", model_content)
+            self.assertIn("secondary=sales_products", model_content)
+
+            schema_path = root / "app" / "schemas" / "sales_schemas.py"
+            schema_content = schema_path.read_text(encoding="utf-8")
+            self.assertIn("customer_id: str", schema_content)

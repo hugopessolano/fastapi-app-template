@@ -1,4 +1,4 @@
-from tools.scaffold.spec import FieldSpec, ResourceSpec
+from tools.scaffold.spec import FieldSpec, RelationSpec, ResourceSpec, to_class_name
 
 
 TYPE_MAP = {
@@ -11,23 +11,54 @@ TYPE_MAP = {
 
 
 def model_template(spec: ResourceSpec) -> str:
-    type_imports = {TYPE_MAP[field.type] for field in spec.fields if field.type in TYPE_MAP}
+    schema_fields = build_schema_fields(spec)
+    type_imports = {TYPE_MAP[field.type] for field in schema_fields if field.type in TYPE_MAP}
+    type_imports.add("String")
     base_imports = {"Column", *type_imports}
-    if spec.tenant_scoped:
+    if spec.tenant_scoped or has_foreign_keys(spec) or has_many_to_many(spec):
         base_imports.add("ForeignKey")
+    if has_many_to_many(spec):
+        base_imports.add("Table")
 
     imports = ", ".join(sorted(base_imports))
     lines = [
         f"from sqlalchemy import {imports}",
         "from .base_models import Base",
-        "from sqlalchemy.orm import Mapped, mapped_column",
+        "from sqlalchemy.orm import Mapped, mapped_column, relationship",
+        "from typing import List",
         "import uuid",
         "",
+    ]
+
+    if has_many_to_many(spec):
+        for relation in spec.relations:
+            if relation.type != "many_to_many":
+                continue
+            table_name = relation.through or default_join_table(spec, relation)
+            var_name = table_name
+            target_fk = default_target_fk(relation)
+            source_fk = default_source_fk(spec)
+            ondelete = ondelete_clause(relation)
+            lines.extend(
+                [
+                    f"{var_name} = Table(",
+                    f"    \"{table_name}\",",
+                    "    Base.metadata,",
+                    f"    Column(\"{source_fk}\", String, ForeignKey(\"{spec.table_name}.id\"{ondelete})),",
+                    f"    Column(\"{target_fk}\", String, ForeignKey(\"{relation.target}.id\"{ondelete})),",
+                    ")",
+                    "",
+                ]
+            )
+
+    lines.extend(
+        [
         f"class {spec.model_class}(Base):",
         f"    __tablename__ = \"{spec.table_name}\"",
         "",
         "    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))",
-    ]
+        ]
+    )
 
     for field in spec.fields:
         type_name = TYPE_MAP.get(field.type, field.type)
@@ -37,15 +68,32 @@ def model_template(spec: ResourceSpec) -> str:
             f"    {field.name} = Column({type_name}, nullable={nullable}, unique={unique})"
         )
 
+    for relation in spec.relations:
+        if relation.type != "belongs_to":
+            continue
+        fk_name = relation.foreign_key or default_fk_name(relation)
+        if not any(field.name == fk_name for field in spec.fields):
+            nullable = "True" if relation.nullable else "False"
+            ondelete = ondelete_clause(relation)
+            lines.append(
+                f"    {fk_name} = Column(String, ForeignKey(\"{relation.target}.id\"{ondelete}), nullable={nullable})"
+            )
+
     if spec.tenant_scoped:
         lines.append("    tenant_id = Column(String, ForeignKey(\"tenants.id\"))")
+
+    for relation in spec.relations:
+        relationship_line = build_relationship_line(spec, relation)
+        if relationship_line:
+            lines.append(relationship_line)
 
     return "\n".join(lines) + "\n"
 
 
 def schema_template(spec: ResourceSpec) -> str:
     base_name = spec.schema_base
-    needs_datetime = any(field.type == "DateTime" for field in spec.fields)
+    schema_fields = build_schema_fields(spec)
+    needs_datetime = any(field.type == "DateTime" for field in schema_fields)
     lines = [
         "from pydantic import BaseModel",
         "from typing import Optional",
@@ -59,15 +107,15 @@ def schema_template(spec: ResourceSpec) -> str:
             f"class Base{base_name}(BaseSchema):",
         ]
     )
-    for field in spec.fields:
+    for field in schema_fields:
         lines.append(f"    {field.name}: {python_type(field.type)}")
     lines.append("")
     lines.append(f"class {base_name}Create(BaseModel):")
-    for field in spec.fields:
+    for field in schema_fields:
         lines.append(f"    {field.name}: {python_type(field.type)}")
     lines.append("")
     lines.append(f"class {base_name}Update(BaseModel):")
-    for field in spec.fields:
+    for field in schema_fields:
         lines.append(f"    {field.name}: Optional[{python_type(field.type)}] = None")
     lines.append("")
     lines.append("    class Config:")
@@ -387,3 +435,90 @@ def python_type(field_type: str) -> str:
         "DateTime": "datetime",
     }
     return mapping.get(field_type, "str")
+
+
+def has_foreign_keys(spec: ResourceSpec) -> bool:
+    return any(relation.type == "belongs_to" for relation in spec.relations)
+
+
+def has_many_to_many(spec: ResourceSpec) -> bool:
+    return any(relation.type == "many_to_many" for relation in spec.relations)
+
+
+def default_fk_name(relation: RelationSpec) -> str:
+    target = relation.target.rstrip("s")
+    return f"{target}_id"
+
+
+def default_target_fk(relation: RelationSpec) -> str:
+    target = relation.target.rstrip("s")
+    return f"{target}_id"
+
+
+def default_source_fk(spec: ResourceSpec) -> str:
+    source = spec.table_name.rstrip("s")
+    return f"{source}_id"
+
+
+def default_join_table(spec: ResourceSpec, relation: RelationSpec) -> str:
+    return f"{spec.table_name}_{relation.target}"
+
+
+def ondelete_clause(relation: RelationSpec) -> str:
+    if not relation.on_delete:
+        return ""
+    value = relation.on_delete.strip().lower().replace(" ", "_")
+    mapping = {
+        "cascade": "CASCADE",
+        "restrict": "RESTRICT",
+        "set_null": "SET NULL",
+        "no_action": "NO ACTION",
+    }
+    sql_value = mapping.get(value, relation.on_delete)
+    return f", ondelete=\"{sql_value}\""
+
+
+def build_relationship_line(spec: ResourceSpec, relation: RelationSpec) -> str | None:
+    target_class = to_class_name(relation.target)
+    back_populates = (
+        f", back_populates=\"{relation.back_populates}\""
+        if relation.back_populates
+        else ""
+    )
+    info = ", info={\"soft_delete_cascade\": True}" if relation.soft_delete_cascade else ""
+
+    if relation.type == "belongs_to":
+        return f"    {relation.name} = relationship(\"{target_class}\"{back_populates}{info})"
+    if relation.type == "has_many":
+        return (
+            f"    {relation.name}: Mapped[List[\"{target_class}\"]] = "
+            f"relationship(\"{target_class}\"{back_populates}{info})"
+        )
+    if relation.type == "many_to_many":
+        table_name = relation.through or default_join_table(spec, relation)
+        return (
+            f"    {relation.name}: Mapped[List[\"{target_class}\"]] = "
+            f"relationship(\"{target_class}\", secondary={table_name}{back_populates}{info})"
+        )
+    return None
+
+
+def build_schema_fields(spec: ResourceSpec) -> list[FieldSpec]:
+    fields = list(spec.fields)
+    existing = {field.name for field in fields}
+    for relation in spec.relations:
+        if relation.type != "belongs_to":
+            continue
+        fk_name = relation.foreign_key or default_fk_name(relation)
+        if fk_name in existing:
+            continue
+        fields.append(
+            FieldSpec(
+                name=fk_name,
+                type="String",
+                nullable=relation.nullable,
+                unique=False,
+            )
+        )
+        existing.add(fk_name)
+    return fields

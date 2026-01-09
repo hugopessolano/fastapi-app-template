@@ -32,6 +32,18 @@ type FieldForm = {
   unique: boolean;
 };
 
+type RelationForm = {
+  name: string;
+  type: "belongs_to" | "has_many" | "many_to_many";
+  target: string;
+  foreign_key: string;
+  through: string;
+  back_populates: string;
+  nullable: boolean;
+  on_delete: string;
+  soft_delete_cascade: boolean;
+};
+
 type SpecForm = {
   version: string;
   name: string;
@@ -44,6 +56,7 @@ type SpecForm = {
   pagination: boolean;
   ordering: boolean;
   fields: FieldForm[];
+  relations: RelationForm[];
   endpoints: {
     list: boolean;
     get: boolean;
@@ -76,6 +89,7 @@ const emptySpec = (): SpecForm => ({
   pagination: true,
   ordering: true,
   fields: [{ name: "name", type: "String", nullable: false, unique: false }],
+  relations: [],
   endpoints: {
     list: true,
     get: true,
@@ -87,6 +101,17 @@ const emptySpec = (): SpecForm => ({
 });
 
 const fieldTypes = ["String", "Integer", "Float", "Boolean", "DateTime"];
+const relationTypes = [
+  { value: "belongs_to", label: "Belongs to" },
+  { value: "has_many", label: "Has many" },
+  { value: "many_to_many", label: "Many to many" },
+];
+const onDeleteOptions = [
+  { value: "", label: "No action" },
+  { value: "restrict", label: "Restrict" },
+  { value: "cascade", label: "Cascade" },
+  { value: "set null", label: "Set null" },
+];
 
 async function fetchJson(path: string, options?: RequestInit) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -136,6 +161,20 @@ function buildVersionPath(path: string, version: string) {
   return [...parts, `${base}_${version}.json`].join("/");
 }
 
+function defaultJoinTable(source: string, target: string) {
+  if (!source || !target) {
+    return "";
+  }
+  return `${source}_${target}`;
+}
+
+function defaultForeignKey(target: string) {
+  if (!target) {
+    return "";
+  }
+  return `${target.replace(/s$/, "")}_id`;
+}
+
 export default function ScaffoldStudio() {
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
@@ -168,6 +207,11 @@ export default function ScaffoldStudio() {
       items: [...items].sort((a, b) => a.version.localeCompare(b.version)),
     }));
   }, [specItems]);
+
+  const targetOptions = useMemo(
+    () => Array.from(new Set(specItems.map((item) => item.plural || item.name))),
+    [specItems]
+  );
 
   const currentGroup = useMemo(() => {
     if (!specPath) {
@@ -370,6 +414,39 @@ export default function ScaffoldStudio() {
       fields: [
         ...current.fields,
         { name: "new_field", type: "String", nullable: true, unique: false },
+      ],
+    }));
+
+  const updateRelation = (index: number, updates: Partial<RelationForm>) =>
+    setSpec((current) => ({
+      ...current,
+      relations: current.relations.map((relation, idx) =>
+        idx === index ? { ...relation, ...updates } : relation
+      ),
+    }));
+
+  const removeRelation = (index: number) =>
+    setSpec((current) => ({
+      ...current,
+      relations: current.relations.filter((_, idx) => idx !== index),
+    }));
+
+  const addRelation = () =>
+    setSpec((current) => ({
+      ...current,
+      relations: [
+        ...current.relations,
+        {
+          name: "relation",
+          type: "belongs_to",
+          target: "",
+          foreign_key: "",
+          through: "",
+          back_populates: "",
+          nullable: false,
+          on_delete: "",
+          soft_delete_cascade: false,
+        },
       ],
     }));
 
@@ -590,7 +667,7 @@ export default function ScaffoldStudio() {
               </Section>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Section title="Seguridad">
+                <Section title="Seguridad" info="Define si el endpoint requiere autenticacion o es multi-tenant.">
                   <ToggleRow
                     label="Auth required"
                     checked={spec.auth_required}
@@ -612,7 +689,7 @@ export default function ScaffoldStudio() {
                     }
                   />
                 </Section>
-                <Section title="Comportamiento">
+                <Section title="Comportamiento" info="Configura soft delete, paginacion y ordenamiento.">
                   <ToggleRow
                     label="Soft delete"
                     checked={spec.soft_delete}
@@ -638,7 +715,7 @@ export default function ScaffoldStudio() {
                 </Section>
               </div>
 
-              <Section title="Rutas disponibles">
+              <Section title="Rutas disponibles" info="Activa o desactiva rutas CRUD para este endpoint.">
                 <div className="grid gap-3 md:grid-cols-2">
                   {Object.entries(spec.endpoints).map(([key, value]) => (
                     <ToggleRow
@@ -655,7 +732,7 @@ export default function ScaffoldStudio() {
                 </div>
               </Section>
 
-              <Section title="Campos">
+              <Section title="Campos" info="Define las columnas base del modelo.">
                 <div className="space-y-3">
                   {spec.fields.map((field, index) => (
                     <div
@@ -718,6 +795,173 @@ export default function ScaffoldStudio() {
                 </Button>
               </Section>
 
+              <Section
+                title="Relaciones"
+                info="Define relaciones entre modelos y sus claves foraneas."
+              >
+                <div className="space-y-3">
+                  {spec.relations.map((relation, index) => (
+                    <div
+                      key={`${relation.name}-${index}`}
+                      className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4"
+                    >
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <FieldBlock label="Nombre">
+                          <Input
+                            placeholder="customer"
+                            value={relation.name}
+                            onChange={(event) =>
+                              updateRelation(index, { name: event.target.value })
+                            }
+                          />
+                        </FieldBlock>
+                        <FieldBlock label="Tipo">
+                          <select
+                            value={relation.type}
+                            onChange={(event) => {
+                              const value = event.target.value as RelationForm["type"];
+                              const updated: Partial<RelationForm> = { type: value };
+                              if (value === "many_to_many" && !relation.through) {
+                                updated.through = defaultJoinTable(
+                                  spec.table_name,
+                                  relation.target
+                                );
+                              }
+                              if (value === "belongs_to" && !relation.foreign_key) {
+                                updated.foreign_key = defaultForeignKey(relation.target);
+                              }
+                              updateRelation(index, updated);
+                            }}
+                            className="h-10 rounded-2xl border border-input bg-background/70 px-3 text-sm"
+                          >
+                            {relationTypes.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                        </FieldBlock>
+                        <FieldBlock label="Target">
+                          <Input
+                            list="relation-targets"
+                            placeholder="customers"
+                            value={relation.target}
+                            onChange={(event) => {
+                              const target = event.target.value;
+                              const updates: Partial<RelationForm> = { target };
+                              if (relation.type === "many_to_many") {
+                                updates.through = relation.through || defaultJoinTable(spec.table_name, target);
+                              }
+                              if (relation.type === "belongs_to") {
+                                updates.foreign_key = relation.foreign_key || defaultForeignKey(target);
+                              }
+                              updateRelation(index, updates);
+                            }}
+                          />
+                        </FieldBlock>
+                        <FieldBlock label="Back populates">
+                          <Input
+                            placeholder="sales"
+                            value={relation.back_populates}
+                            onChange={(event) =>
+                              updateRelation(index, {
+                                back_populates: event.target.value,
+                              })
+                            }
+                          />
+                        </FieldBlock>
+                        {relation.type === "belongs_to" && (
+                          <FieldBlock label="Foreign key">
+                            <Input
+                              placeholder="customer_id"
+                              value={relation.foreign_key}
+                              onChange={(event) =>
+                                updateRelation(index, {
+                                  foreign_key: event.target.value,
+                                })
+                              }
+                            />
+                          </FieldBlock>
+                        )}
+                        {relation.type === "many_to_many" && (
+                          <FieldBlock label="Join table">
+                            <Input
+                              placeholder="sales_products"
+                              value={relation.through}
+                              onChange={(event) =>
+                                updateRelation(index, {
+                                  through: event.target.value,
+                                })
+                              }
+                            />
+                          </FieldBlock>
+                        )}
+                        {(relation.type === "belongs_to" ||
+                          relation.type === "many_to_many") && (
+                          <FieldBlock label="On delete">
+                            <select
+                              value={relation.on_delete}
+                              onChange={(event) =>
+                                updateRelation(index, {
+                                  on_delete: event.target.value,
+                                })
+                              }
+                              className="h-10 rounded-2xl border border-input bg-background/70 px-3 text-sm"
+                            >
+                              {onDeleteOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </FieldBlock>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4">
+                        {relation.type === "belongs_to" && (
+                          <ToggleRow
+                            label="Nullable foreign key"
+                            checked={relation.nullable}
+                            onChange={(value) =>
+                              updateRelation(index, { nullable: value })
+                            }
+                          />
+                        )}
+                        {relation.type === "has_many" && (
+                          <ToggleRow
+                            label="Soft delete cascade"
+                            checked={relation.soft_delete_cascade}
+                            onChange={(value) =>
+                              updateRelation(index, { soft_delete_cascade: value })
+                            }
+                          />
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => removeRelation(index)}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <datalist id="relation-targets">
+                  {targetOptions.map((target) => (
+                    <option key={target} value={target} />
+                  ))}
+                </datalist>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-4"
+                  onClick={addRelation}
+                >
+                  Add relation
+                </Button>
+              </Section>
+
               <Section title="Acciones principales">
                 <div className="flex flex-wrap gap-3">
                   <Button onClick={saveAndGenerate} disabled={isBusy}>
@@ -726,7 +970,10 @@ export default function ScaffoldStudio() {
                 </div>
               </Section>
 
-              <Section title="Sync avanzado">
+              <Section
+                title="Sync avanzado"
+                info="Opciones de emergencia para alinear codigo y spec manualmente."
+              >
                 <HelperText>
                   Usa estas opciones si editaste manualmente el codigo o el spec.
                 </HelperText>
@@ -757,15 +1004,18 @@ export default function ScaffoldStudio() {
 
 function Section({
   title,
+  info,
   children,
 }: {
   title: string;
+  info?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="rounded-3xl border border-border/60 bg-card/70 p-5">
-      <div className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {title}
+      <div className="mb-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <span>{title}</span>
+        {info ? <InfoTip text={info} /> : null}
       </div>
       {children}
     </div>
@@ -807,5 +1057,18 @@ function ToggleRow({
       <span className="text-muted-foreground">{label}</span>
       <Toggle checked={checked} onChange={onChange} />
     </label>
+  );
+}
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span className="group relative inline-flex">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border/60 text-[10px] font-semibold text-muted-foreground">
+        i
+      </span>
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-56 -translate-x-1/2 rounded-2xl border border-border/70 bg-background/95 px-3 py-2 text-xs normal-case text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
+        {text}
+      </span>
+    </span>
   );
 }

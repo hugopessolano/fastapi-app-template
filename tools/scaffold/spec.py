@@ -27,6 +27,19 @@ class TestSpec:
 
 
 @dataclass(frozen=True)
+class RelationSpec:
+    name: str
+    type: str
+    target: str
+    foreign_key: str | None
+    through: str | None
+    back_populates: str | None
+    nullable: bool
+    on_delete: str | None
+    soft_delete_cascade: bool
+
+
+@dataclass(frozen=True)
 class ResourceSpec:
     version: str
     name: str
@@ -41,6 +54,7 @@ class ResourceSpec:
     fields: list[FieldSpec]
     endpoints: EndpointSpec
     tests: TestSpec
+    relations: list[RelationSpec]
 
     @property
     def model_class(self) -> str:
@@ -87,6 +101,20 @@ def load_spec(path: Path) -> ResourceSpec:
             delete=bool(data["endpoints"].get("delete", True)),
         ),
         tests=TestSpec(enabled=bool(data.get("tests", {}).get("enabled", True))),
+        relations=[
+            RelationSpec(
+                name=relation["name"],
+                type=relation["type"],
+                target=relation["target"],
+                foreign_key=relation.get("foreign_key"),
+                through=relation.get("through"),
+                back_populates=relation.get("back_populates"),
+                nullable=bool(relation.get("nullable", False)),
+                on_delete=relation.get("on_delete"),
+                soft_delete_cascade=bool(relation.get("soft_delete_cascade", False)),
+            )
+            for relation in data.get("relations", [])
+        ],
     )
 
 
@@ -97,3 +125,13 @@ def validate_spec(data: dict[str, Any]) -> None:
         raise ValueError(f"Spec missing required fields: {', '.join(missing)}")
     if data.get("tenant_scoped") and not data.get("auth_required", True):
         raise ValueError("tenant_scoped requires auth_required=true.")
+    relations = data.get("relations", [])
+    for relation in relations:
+        relation_type = relation.get("type")
+        if relation_type not in {"belongs_to", "has_many", "many_to_many"}:
+            raise ValueError(f"Invalid relation type: {relation_type}")
+        for key in ("name", "type", "target"):
+            if not relation.get(key):
+                raise ValueError(f"Relation missing required field: {key}")
+        if relation_type == "many_to_many" and not relation.get("through"):
+            continue
