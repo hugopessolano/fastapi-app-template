@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.scaffold.scaffold import create_resource, sync_resource
+from tools.scaffold.scaffold import create_resource, remove_resource, sync_resource
 
 
 def write_file(path: Path, content: str) -> None:
@@ -121,3 +121,36 @@ class TestScaffold(unittest.TestCase):
             model_path = root / "app" / "database" / "models" / "widgets_models.py"
             content = model_path.read_text(encoding="utf-8")
             self.assertIn("size = Column(String, nullable=True, unique=False)", content)
+
+    def test_remove_cleans_generated_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = create_spec(root, "widget")
+
+            create_resource(root, spec_path)
+            remove_resource(root, spec_path)
+
+            model_path = root / "app" / "database" / "models" / "widgets_models.py"
+            schema_path = root / "app" / "schemas" / "widgets_schemas.py"
+            logic_path = root / "app" / "endpoints_logic" / "v1" / "widgets.py"
+            router_path = root / "app" / "routers" / "v1" / "widgets.py"
+            test_path = root / "tests" / "test_widgets_modules.py"
+            manifest_path = root / ".scaffold" / "manifest.json"
+            registry_path = root / "app" / "routers" / "registry_data.json"
+            models_init = root / "app" / "database" / "models" / "__init__.py"
+
+            self.assertFalse(model_path.exists())
+            self.assertFalse(schema_path.exists())
+            self.assertFalse(logic_path.exists())
+            self.assertFalse(router_path.exists())
+            self.assertFalse(test_path.exists())
+            self.assertFalse(manifest_path.exists())
+            self.assertTrue(spec_path.exists())
+
+            registry = read_json(registry_path)
+            self.assertNotIn("v1", registry)
+
+            init_content = models_init.read_text(encoding="utf-8")
+            self.assertNotIn("from .widgets_models import Widgets", init_content)
+            self.assertNotIn("\"Widgets\"", init_content)

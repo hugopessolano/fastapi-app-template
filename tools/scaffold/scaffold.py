@@ -2,8 +2,8 @@ import json
 from pathlib import Path
 
 from tools.scaffold.inspect_code import parse_endpoints_from_router, parse_fields_from_model
-from tools.scaffold.manifest import hash_file, hash_text, load_manifest, save_manifest
-from tools.scaffold.registry import ensure_registry_entry
+from tools.scaffold.manifest import hash_file, hash_text, load_manifest, manifest_path, save_manifest
+from tools.scaffold.registry import ensure_registry_entry, remove_registry_entry
 from tools.scaffold.spec import ResourceSpec, load_spec
 from tools.scaffold.templates import logic_template, model_template, router_template, schema_template, test_template
 
@@ -66,6 +66,19 @@ def sync_resource(root: Path, spec_path: Path) -> None:
     update_manifest(root, spec, spec_path, paths)
 
 
+def remove_resource(root: Path, spec_path: Path, delete_spec: bool = False) -> None:
+    spec = load_spec(spec_path)
+    paths = build_paths(root, spec)
+    for path in paths.values():
+        if path.exists():
+            path.unlink()
+    remove_models_init(root, spec)
+    remove_registry_entry(root, spec)
+    remove_manifest_entry(root, spec)
+    if delete_spec and spec_path.exists():
+        spec_path.unlink()
+
+
 def build_paths(root: Path, spec: ResourceSpec) -> dict[str, Path]:
     return {
         "model": root / "app" / "database" / "models" / f"{spec.plural}_models.py",
@@ -109,6 +122,19 @@ def update_models_init(root: Path, spec: ResourceSpec) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def remove_models_init(root: Path, spec: ResourceSpec) -> None:
+    path = root / "app" / "database" / "models" / "__init__.py"
+    if not path.exists():
+        return
+    content = path.read_text(encoding="utf-8")
+    model_import = f"from .{spec.plural}_models import {spec.model_class}"
+    lines = [line for line in content.splitlines() if line.strip() != model_import]
+    updated = "\n".join(lines).rstrip() + "\n"
+    if "__all__" in updated:
+        updated = remove_all_list(updated, spec.model_class)
+    path.write_text(updated, encoding="utf-8")
+
+
 def update_all_list(content: str, item: str) -> str:
     prefix = "__all__ = ["
     if prefix not in content:
@@ -122,6 +148,24 @@ def update_all_list(content: str, item: str) -> str:
     ]
     if item not in entries:
         entries.append(item)
+    updated = prefix + ", ".join(f"\"{entry}\"" for entry in entries) + "]"
+    return content[: content.index(prefix)] + updated + content[end + 1 :]
+
+
+def remove_all_list(content: str, item: str) -> str:
+    prefix = "__all__ = ["
+    if prefix not in content:
+        return content
+    start = content.index(prefix) + len(prefix)
+    end = content.index("]", start)
+    entries = [
+        entry.strip().strip("\"'")
+        for entry in content[start:end].split(",")
+        if entry.strip()
+    ]
+    entries = [entry for entry in entries if entry != item]
+    if not entries:
+        entries = ["Base"]
     updated = prefix + ", ".join(f"\"{entry}\"" for entry in entries) + "]"
     return content[: content.index(prefix)] + updated + content[end + 1 :]
 
@@ -140,6 +184,22 @@ def update_manifest(root: Path, spec: ResourceSpec, spec_path: Path, paths: dict
         "spec_hash": hash_spec(spec_path),
         "files": {str(path): hash_file(path) for path in paths.values() if path.exists()},
     }
+    save_manifest(root, manifest)
+
+
+def remove_manifest_entry(root: Path, spec: ResourceSpec) -> None:
+    manifest = load_manifest(root)
+    resources = manifest.get("resources", {})
+    if spec.plural in resources:
+        resources.pop(spec.plural)
+    if not resources:
+        path = manifest_path(root)
+        if path.exists():
+            path.unlink()
+        if path.parent.exists() and not any(path.parent.iterdir()):
+            path.parent.rmdir()
+        return
+    manifest["resources"] = resources
     save_manifest(root, manifest)
 
 

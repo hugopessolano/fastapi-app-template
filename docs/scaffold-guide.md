@@ -56,7 +56,18 @@ Metadata lives in `.scaffold/manifest.json`.
 Routers are tracked in `app/routers/registry_data.json`.
 The runtime registry loads from this file, so UI tooling can edit it safely.
 
-## 6) Example workflow (widgets)
+## 6) Remove a resource
+Remove generated code while keeping the spec:
+```
+python -m tools.scaffold remove --spec specs/examples/widgets.json
+```
+
+Remove generated code and delete the spec:
+```
+python -m tools.scaffold remove --spec specs/examples/widgets.json --delete-spec
+```
+
+## 7) Example workflow (widgets)
 Create a spec:
 ```
 {

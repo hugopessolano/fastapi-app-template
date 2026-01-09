@@ -38,3 +38,14 @@ def ensure_registry_entry(root: Path, spec: ResourceSpec) -> None:
             }
         )
     save_registry(root, data)
+
+
+def remove_registry_entry(root: Path, spec: ResourceSpec) -> None:
+    data = load_registry(root)
+    version = spec.version
+    if version not in data:
+        return
+    data[version] = [item for item in data[version] if item.get("name") != spec.plural]
+    if not data[version]:
+        data.pop(version)
+    save_registry(root, data)
