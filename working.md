@@ -5,20 +5,16 @@ No hay cambios aplicados aun; es una base de referencia para planificar.
 
 ## 1) Acoplamiento entre modulos y permisos/autenticacion
 Estado actual
-- Los routers se incluyen siempre en `app/main.py`, incluyendo `auth`, `roles`, `permissions`, `stores`, `users` en forma fija.
-- El modo de auth se decide en `app/auth/context.py`. Cuando `AUTH_MODE=disabled`, la dependencia devuelve un contexto permisivo, pero las rutas de auth siguen visibles y activas.
-- `build_permissions` crea permisos segun rutas y tags en `app/auth/build_permissions.py`, y se ejecuta al inicio en `app/main.py` cuando `AUTO_BUILD_PERMISSIONS=true`.
-- Roles y usuarios estan acoplados a stores (roles tienen `store_id` en `app/database/models/users_models.py`). La logica de permisos usa roles -> permisos (`app/auth/auth_utils.py`, `app/auth/oauth2.py`) y por defecto asume que el usuario tiene roles y permisos.
+- La seleccion de routers depende del modo de auth via `app/routers/registry.py`.
+- Si `AUTH_MODE=disabled`, solo se incluye `stores` y las rutas de auth quedan fuera del esquema.
+- `build_permissions` crea permisos en base a rutas presentes y no depende de `stores`.
 
 Implicaciones
-- No se puede excluir el stack de auth sin modificar `app/main.py` (las rutas siguen publicas en Swagger).
-- Con `AUTH_MODE=disabled`, los permisos igual se generan y el modelo de auth sigue formando parte del sistema aunque el usuario no los use.
-- Al remover el endpoint `stores`, se rompe la coherencia de roles/usuarios por la dependencia con `store_id`.
+- Las rutas de auth pueden desactivarse sin tocar `app/main.py`.
+- Los permisos se generan solo para rutas activas.
 
 Expansion de lo que se necesita
-- Hacer que la construccion de permisos sea independiente del endpoint `stores` y del modelo `stores`.
-- Desactivar/ocultar endpoints de auth cuando `AUTH_MODE=disabled` (y opcionalmente cuando `custom`).
-- Permitir que se use la app sin cargar rutas de auth, roles y permissions, sin romper permisos auto-generados para endpoints restantes.
+- Evaluar si `AUTH_MODE=custom` debe ocultar rutas o mantenerlas visibles.
 
 
 ## 2) DELETE fisico vs borrado logico
