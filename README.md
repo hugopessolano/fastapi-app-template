@@ -16,6 +16,7 @@ This template provides a didactic starting point for FastAPI projects. It ships 
 - Logging to console and SQLite (`LOGS_DB_PATH`), with routers emitting logs out of the box.
 - Docs directory (`docs/`) with quickstart, how-to-test, and customization checklist.
 - Built-in retry helpers and opt-in rate limiting dependencies.
+- Optional in-memory caching helpers (opt-in per endpoint).
 
 ## Repository Layout
 
@@ -112,5 +113,6 @@ Tips:
 - `docs/soft-delete-guide.md`: soft delete behavior and how to use cascades.
 - `docs/auth-and-tenant-context-guide.md`: how auth and tenant scoping are separated.
 - `docs/retries-and-rate-limits-guide.md`: retry strategy and opt-in rate limiting.
+- `docs/cache-guide.md`: cache helpers and usage patterns.
 
 Use the issues tracker or your team's knowledge base to capture improvement ideas as you work with the template.

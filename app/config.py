@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     retry_base_delay_seconds: float = Field(default=0.2)
     retry_max_delay_seconds: float = Field(default=2.0)
     retry_jitter_seconds: float = Field(default=0.1)
+    cache_enabled: bool = Field(default=False)
+    cache_default_ttl_seconds: int = Field(default=60)
 
     @property
     def resolved_logs_db_path(self) -> str:

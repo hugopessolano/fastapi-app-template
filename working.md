@@ -108,16 +108,15 @@ Expansion de lo que se necesita
 
 ## 8) Cacheo
 Estado actual
-- No hay ningun mecanismo de cache (ni in-memory ni Redis).
-- No hay headers de cache en respuestas ni invalidaciones.
+- Hay un cache in-memory opcional (`app/cache.py`) con TTL y helper de keys.
+- El cache es opt-in y se controla con `CACHE_ENABLED` y `CACHE_DEFAULT_TTL_SECONDS`.
 
 Implicaciones
-- Endpoints con lecturas repetidas no tienen optimizacion.
-- Falta de patrones para cache de datos externos o queries costosas.
+- Hay un patron base reutilizable para cachear consultas costosas.
+- En despliegues con multiples workers, cada proceso tiene su propio cache.
 
 Expansion de lo que se necesita
-- Evaluar una estrategia base (cache in-memory simple o Redis opcional).
-- Definir politicas de expiracion e invalidacion.
+- Evaluar si se requiere un backend distribuido (Redis) en escenarios de escala.
 
 
 ## Dependencias y orden sugerido

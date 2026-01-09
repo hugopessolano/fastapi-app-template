@@ -18,6 +18,7 @@ Key entries to review:
 - `TENANTS_ENABLED`: toggle the `/v1/tenants` router on or off.
 - `RATE_LIMIT_DEFAULT_REQUESTS` / `RATE_LIMIT_DEFAULT_WINDOW_SECONDS`: defaults for opt-in rate limiting.
 - `RETRY_MAX_ATTEMPTS`: default retry attempts for external calls.
+- `CACHE_ENABLED` / `CACHE_DEFAULT_TTL_SECONDS`: enable caching helpers when desired.
 - `AUTO_BUILD_PERMISSIONS` / `ENABLE_SEED_DATA`: keep them `true` for the first run.
 
 ## 3. Run with Docker Compose (recommended)
