@@ -157,8 +157,8 @@ export default function ScaffoldStudio() {
               Administra specs, modelos y routers desde un mismo panel.
             </h1>
             <p className="max-w-2xl text-base text-muted-foreground">
-              Edita specs en JSON, dispara create/modify/sync/remove y mantené el
-              registry alineado con el código generado. Todo operando sobre el
+              Edita specs en JSON, dispara create/modify/sync/remove y mantene el
+              registry alineado con el codigo generado. Todo operando sobre el
               filesystem local.
             </p>
           </div>
@@ -189,14 +189,14 @@ export default function ScaffoldStudio() {
             <CardHeader>
               <CardTitle>Specs disponibles</CardTitle>
               <CardDescription>
-                Seleccioná un spec para editar o sincronizar.
+                Selecciona un spec para editar o sincronizar.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {specs.length === 0 && (
                   <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
-                    No hay specs cargados todavía.
+                    No hay specs cargados todavia.
                   </div>
                 )}
                 {specs.map((spec, index) => (
@@ -236,7 +236,7 @@ export default function ScaffoldStudio() {
             <CardHeader>
               <CardTitle>Editor JSON</CardTitle>
               <CardDescription>
-                Guardá el spec primero y luego ejecutá acciones del scaffold.
+                Guarda el spec primero y luego ejecuta acciones del scaffold.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

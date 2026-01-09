@@ -18,6 +18,14 @@ npm run dev
 ```
 Default URL: `http://127.0.0.1:3000`
 
+## 2.1) Docker Compose
+From the repo root:
+```
+docker compose up scaffold-api scaffold-ui
+```
+UI: `http://127.0.0.1:3000`
+API: `http://127.0.0.1:8001`
+
 ## 3) Configure the API URL (optional)
 Set in `tools/scaffold/ui/.env.local`:
 ```
