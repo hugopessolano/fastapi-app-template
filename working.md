@@ -37,7 +37,7 @@ Pendiente
 ## 3) Versionado de endpoints y separacion de logica
 Estado actual
 - Los endpoints viven en `app/routers/v1/` y se montan con prefijo `/v1`.
-- La logica de negocio vive en `app/endpoints_logic/` y los routers delegan.
+- La logica de negocio vive en `app/endpoints_logic/v1/` y los routers delegan.
 
 Implicaciones
 - Hay versionado formal (`/v1`) y estructura para futuras versiones.

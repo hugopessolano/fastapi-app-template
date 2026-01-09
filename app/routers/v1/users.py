@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.context import AuthContext, get_auth_context
 from app.database.database import get_db
-from app.endpoints_logic.users import (
+from app.endpoints_logic.v1.users import (
     create_user,
     delete_user,
     get_user_detail,
