@@ -28,7 +28,7 @@ The first run may take a few minutes. When you see messages such as `Service Run
 ## 5. Test the login (built_in mode)
 In another terminal:
 ```bash
-curl -X POST http://localhost:8000/auth/login \
+curl -X POST http://localhost:8000/v1/auth/login \
   -d "username=admin@admin.com" \
   -d "password=admin"
 ```
@@ -37,13 +37,13 @@ Copy the `access_token` from the response.
 ## 6. Call a protected endpoint
 ```bash
 curl -H "Authorization: Bearer TOKEN_HERE" \
-     http://localhost:8000/tenants
+     http://localhost:8000/v1/tenants
 ```
 Seeing a list (empty or containing `Base Tenant`) confirms authenticated reads work.
 
 ## 7. Create a resource
 ```bash
-curl -X POST http://localhost:8000/tenants \
+curl -X POST http://localhost:8000/v1/tenants \
   -H "Authorization: Bearer TOKEN_HERE" \
   -H "Content-Type: application/json" \
   -d '{"name":"Sample Tenant","address":"123 Demo St"}'
@@ -53,7 +53,7 @@ You should receive the new tenant in JSON form, proving writes and seeds are wor
 ## 8. List users (requires token)
 ```bash
 curl -H "Authorization: Bearer TOKEN_HERE" \
-     http://localhost:8000/users
+     http://localhost:8000/v1/users
 ```
 Expect to see at least the admin user; this validates the `/users` CRUD.
 
@@ -64,7 +64,7 @@ Expect to see at least the admin user; this validates the `/users` CRUD.
    docker compose down
    docker compose up --build
    ```
-3. Hit `http://localhost:8000/tenants` without a token. If it works, the no-auth mode is enabled.
+3. Hit `http://localhost:8000/v1/tenants` without a token. If it works, the no-auth mode is enabled.
 
 ## 10. Stop containers
 ```bash

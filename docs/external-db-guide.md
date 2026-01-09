@@ -36,7 +36,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from app.database.external import get_external_db
 
-router = APIRouter(prefix="/legacy", tags=["Legacy"])
+router = APIRouter(prefix="/v1/legacy", tags=["Legacy"])
 
 @router.get("/items")
 def list_legacy_items(conn = Depends(get_external_db)):
@@ -48,7 +48,7 @@ def list_legacy_items(conn = Depends(get_external_db)):
 
 ## 5. Validate the connection
 1. Start the API (`uvicorn` or `docker compose up --build`).
-2. Call the endpoint you created (e.g., `/legacy/items`).
+2. Call the endpoint you created (e.g., `/v1/legacy/items`).
 3. Confirm it returns data from the external database.
 
 ## 6. Best practices

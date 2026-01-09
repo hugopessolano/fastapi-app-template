@@ -2,14 +2,24 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from app.database.models import Permissions, Roles, Base, Users
 from typing import List
-from app.schemas.users_schemas import BaseRole, BasePermission, UserResponse
-from app.schemas.tenants_schemas import BaseTenant
+from typing import TYPE_CHECKING
 from sqlalchemy.inspection import inspect
 import math
 from fastapi import Request, Response, HTTPException
-from app.logging import child_logger
+_utils_logger = None
 
-utils_logger = child_logger.bind(module="router_utils")
+
+def _get_logger():
+    global _utils_logger
+    if _utils_logger is None:
+        from app.logging import child_logger
+
+        _utils_logger = child_logger.bind(module="router_utils")
+    return _utils_logger
+
+if TYPE_CHECKING:
+    from app.schemas.tenants_schemas import BaseTenant
+    from app.schemas.users_schemas import BasePermission, BaseRole, UserResponse
 
 def validate_ids(ids_list: List[str|None], model: Base, db: Session)-> list[str|None]:
     invalid_ids = list()
@@ -19,13 +29,15 @@ def validate_ids(ids_list: List[str|None], model: Base, db: Session)-> list[str|
             invalid_ids.append(id)
     
     if invalid_ids:
-        utils_logger.bind(model=getattr(model, "__tablename__", str(model))).warning(
+        _get_logger().bind(model=getattr(model, "__tablename__", str(model))).warning(
             f"Invalid ids detected: {invalid_ids}"
         )
     return invalid_ids
 
 
-def convert_role_to_baserole(role: Roles, db: Session) -> BaseRole:
+def convert_role_to_baserole(role: Roles, db: Session):
+    from app.schemas.users_schemas import BasePermission, BaseRole
+
     permissions_list = []
     for rp in role.permissions:  # Assuming 'permissions' is the backref from RolePermissions
         permission = db.query(Permissions).filter(Permissions.id == rp.permission_id).first()
@@ -47,6 +59,8 @@ def convert_role_to_baserole(role: Roles, db: Session) -> BaseRole:
 
 
 def convert_tenant_to_basetenant(tenant):
+    from app.schemas.tenants_schemas import BaseTenant
+
     return BaseTenant(
         id=tenant.id,
         created_at=tenant.created_at,
@@ -56,7 +70,9 @@ def convert_tenant_to_basetenant(tenant):
     )
 
 
-def convert_user_to_response(user: Users, db: Session) -> UserResponse:
+def convert_user_to_response(user: Users, db: Session):
+    from app.schemas.users_schemas import UserResponse
+
     roles_list = [convert_role_to_baserole(user_role.role, db) for user_role in user.roles]
     tenants_list = [
         convert_tenant_to_basetenant(user_tenant.tenant)
@@ -80,7 +96,7 @@ def filter_by_tenant(
     if allowed_tenant_ids is None:
         return db_query
     if len(allowed_tenant_ids) == 0:
-        utils_logger.warning("User attempted to access tenants without assignments.")
+        _get_logger().warning("User attempted to access tenants without assignments.")
         raise HTTPException(status_code=403, detail="User is not assigned to any tenant.")
 
     column = getattr(model, column_name, None)
@@ -89,7 +105,7 @@ def filter_by_tenant(
             status_code=400,
             detail=f"Model {getattr(model, '__tablename__', str(model))} lacks column '{column_name}'",
         )
-    utils_logger.bind(
+    _get_logger().bind(
         model=getattr(model, "__tablename__", str(model)),
         column=column_name,
     ).debug("Filtering query by allowed tenants")

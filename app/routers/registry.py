@@ -6,14 +6,14 @@ from fastapi import APIRouter
 
 def get_router_modules(auth_mode: str | None) -> List[str]:
     mode = _normalize_auth_mode(auth_mode)
-    modules = ["app.routers.tenants"]
+    modules = ["app.routers.v1.tenants"]
     if mode != "disabled":
         modules.extend(
             [
-                "app.routers.roles",
-                "app.routers.permissions",
-                "app.routers.users",
-                "app.routers.auth",
+                "app.routers.v1.roles",
+                "app.routers.v1.permissions",
+                "app.routers.v1.users",
+                "app.routers.v1.auth",
             ]
         )
     return modules

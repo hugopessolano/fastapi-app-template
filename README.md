@@ -30,7 +30,7 @@ Set `AUTH_MODE` inside `.env` (default `built_in`):
 
 | Mode | Behavior |
 | --- | --- |
-| `built_in` | OAuth2 password flow + JWT (`/auth/login`). Routers depend on `AuthContext`. |
+| `built_in` | OAuth2 password flow + JWT (`/v1/auth/login`). Routers depend on `AuthContext`. |
 | `disabled` | Auth is bypassed; `AuthContext` becomes permissive (ideal for prototyping). |
 | `custom` | Placeholder to plug your own provider; the template raises 501 until you supply it. |
 
@@ -65,7 +65,7 @@ On startup the app:
 ## How to Extend the Template
 1. **Models**: add SQLAlchemy models in `app/database/models/` and generate migrations with Alembic.
 2. **Schemas**: create Pydantic models in `app/schemas/`.
-3. **Router**: follow `app/routers/tenants.py` for CRUD, pagination, and tenant filtering.
+3. **Router**: follow `app/routers/v1/tenants.py` for CRUD, pagination, and tenant filtering.
 4. **Register**: include the router in `app/main.py` and set tags (permissions use them).
 5. **Document**: describe extra setup (seeds, config flags) inside `docs/`.
 
@@ -103,7 +103,7 @@ Tips:
 
 ## Additional Resources
 - `docs/quickstart.md`: run the template (Docker-first) and hit your first endpoint.
-- `docs/how_to_test.md`: testing script covering auth toggle, logs, and `/users`.
+- `docs/how_to_test.md`: testing script covering auth toggle, logs, and `/v1/users`.
 - `docs/customization-checklist.md`: checklist for adapting the template (naming, config, auth, docs).
 - `docs/external-db-guide.md`: paso a paso para conectar bases externas usando `EXTERNAL_DB_URL`.
 - `docs/alembic-guide.md`: guide to create and apply migrations safely.

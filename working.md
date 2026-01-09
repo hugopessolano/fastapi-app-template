@@ -1,7 +1,7 @@
 # Working Notes - Analisis de Problemas
 
 Este documento consolida el estado actual del repo frente a los 8 puntos listados.
-No hay cambios aplicados aun; es una base de referencia para planificar.
+Incluye cambios ya aplicados y pendientes, y se actualiza a medida que avanza el plan.
 
 ## 1) Acoplamiento entre modulos y permisos/autenticacion
 Estado actual
@@ -30,24 +30,21 @@ Implicaciones
 - Las eliminaciones quedan trazadas y recuperables.
 - Las queries activas excluyen registros borrados sin necesidad de filtros manuales.
 
-Expansion de lo que se necesita
-- Agregar `deleted_at` al modelo base y propagarlo en todos los modelos.
-- Modificar todas las queries para filtrar `deleted_at is NULL` por defecto.
-- Al borrar, establecer `deleted_at` y propagarlo a dependientes (soft delete en cascada).
+Pendiente
+- Revisar la cascada en modelos nuevos y validar si algun flujo requiere restauracion.
 
 
 ## 3) Versionado de endpoints y separacion de logica
 Estado actual
-- Los endpoints viven directamente en `app/routers/` y se montan con prefijos sin version (`/tenants`, `/users`, etc.).
-- La logica de negocio esta mezclada en los routers.
+- Los endpoints viven en `app/routers/v1/` y se montan con prefijo `/v1`.
+- La logica de negocio vive en `app/endpoints_logic/` y los routers delegan.
 
 Implicaciones
-- No hay versionado formal (`/v1`) ni estructura para futuras versiones.
-- Cualquier cambio de version implica editar todas las rutas, y no existe un lugar claro para la logica compartida.
+- Hay versionado formal (`/v1`) y estructura para futuras versiones.
+- La logica esta separada y reutilizable fuera del router.
 
 Expansion de lo que se necesita
-- Crear estructura `app/routers/v1/` y prefijar rutas con `/v1`.
-- Extraer logica a una capa tipo `endpoints_logic/` para reutilizar y aislar reglas de negocio.
+- Evaluar como versionar futuras rutas (`v2`, etc.) y el proceso de migracion.
 
 
 ## 4) Creacion manual de endpoints/schemas/modelos
@@ -72,9 +69,8 @@ Estado actual
 Implicaciones
 - Se reducen errores de ruta y de DB no alineada con `DATABASE_URL`.
 
-Expansion de lo que se necesita
-- Ajustar configuracion para usar `DATABASE_URL` real y rutas consistentes.
-- Documentacion clara por escenarios y comandos correctos.
+Pendiente
+- Validar en un entorno distinto a SQLite y ajustar si aparece un caso no cubierto.
 
 
 ## 6) Automatizacion para conexiones a bases externas

@@ -45,7 +45,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## 6. Authenticate (built-in mode)
 ```bash
-curl -X POST http://localhost:8000/auth/login \
+curl -X POST http://localhost:8000/v1/auth/login \
   -d "username=admin@admin.com" \
   -d "password=admin"
 ```
@@ -54,20 +54,20 @@ Copy the `access_token` from the response.
 ## 7. Call a protected endpoint
 ```bash
 curl -H "Authorization: Bearer TOKEN_HERE" \
-     http://localhost:8000/tenants
+     http://localhost:8000/v1/tenants
 ```
 
 ## 8. Create a tenant (write test)
 ```bash
-curl -X POST http://localhost:8000/tenants \
+curl -X POST http://localhost:8000/v1/tenants \
   -H "Authorization: Bearer TOKEN_HERE" \
   -H "Content-Type: application/json" \
   -d '{"name":"Sample Tenant","address":"123 Demo St"}'
 ```
 
 ## 9. Explore other routers
-- `/users` lets you list/manage users (requires admin token). Try `curl -H "Authorization: Bearer TOKEN" http://localhost:8000/users`.
-- `/roles` and `/permissions` show how authorization rules are managed.
+- `/v1/users` lets you list/manage users (requires admin token). Try `curl -H "Authorization: Bearer TOKEN" http://localhost:8000/v1/users`.
+- `/v1/roles` and `/v1/permissions` show how authorization rules are managed.
 - `AuthContext` adapts behavior automatically if you switch `AUTH_MODE`.
 
 Next steps: follow `docs/how_to_test.md` for a more detailed validation and `docs/customization-checklist.md` to adapt the template to your domain.

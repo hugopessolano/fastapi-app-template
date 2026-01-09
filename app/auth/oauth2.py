@@ -17,7 +17,7 @@ settings = get_settings()
 SECRET_KEY = settings.secret_key
 ALGORITHM = settings.token_algorithm
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="v1/auth/login", auto_error=False)
 
 
 def create_access_token(data: dict):

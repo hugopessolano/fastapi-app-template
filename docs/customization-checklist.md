@@ -21,7 +21,7 @@ Use this list when adapting the template to a new project or domain.
 - [ ] Clean `app/app-bkp.db` or mount a persistent volume suited for the new environment.
 
 ## 4. Routers & Schemas
-- [ ] Duplicate `tenants.py` as a baseline for new resources.
+- [ ] Duplicate `app/routers/v1/tenants.py` as a baseline for new resources.
 - [ ] Create Pydantic schemas in `app/schemas/`.
 - [ ] Register the new router inside `app/main.py`.
 - [ ] Tag routes thoughtfully so permissions make sense (`tags=['Inventory']`, etc.).
