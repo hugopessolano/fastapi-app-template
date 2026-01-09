@@ -107,5 +107,6 @@ Tips:
 - `docs/customization-checklist.md`: checklist for adapting the template (naming, config, auth, docs).
 - `docs/external-db-guide.md`: paso a paso para conectar bases externas usando `EXTERNAL_DB_URL`.
 - `docs/alembic-guide.md`: guide to create and apply migrations safely.
+- `docs/soft-delete-guide.md`: soft delete behavior and how to use cascades.
 
 Use the issues tracker or your team's knowledge base to capture improvement ideas as you work with the template.
