@@ -109,5 +109,6 @@ Tips:
 - `docs/external-db-guide.md`: paso a paso para conectar bases externas usando `EXTERNAL_DB_URL`.
 - `docs/alembic-guide.md`: guide to create and apply migrations safely.
 - `docs/soft-delete-guide.md`: soft delete behavior and how to use cascades.
+- `docs/auth-and-tenant-context-guide.md`: how auth and tenant scoping are separated.
 
 Use the issues tracker or your team's knowledge base to capture improvement ideas as you work with the template.
