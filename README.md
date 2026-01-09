@@ -35,6 +35,7 @@ Set `AUTH_MODE` inside `.env` (default `built_in`):
 | `custom` | Placeholder to plug your own provider; the template raises 501 until you supply it. |
 
 Seeds (when enabled) create `admin@admin.com` / `admin` linked to the base tenant.
+`TENANTS_ENABLED` controls whether `/v1/tenants` is exposed (defaults to `true`).
 
 ## Getting Started
 1. Copy the environment file.

@@ -30,7 +30,10 @@ def create_app() -> FastAPI:
         expose_headers=["X-Next-Page", "X-Last-Page"],
     )
 
-    router_modules = get_router_modules(settings.normalized_auth_mode)
+    router_modules = get_router_modules(
+        settings.normalized_auth_mode,
+        tenants_enabled=settings.tenants_enabled,
+    )
     for router in load_routers(router_modules):
         app.include_router(router)
 

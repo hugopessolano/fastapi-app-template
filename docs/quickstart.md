@@ -15,6 +15,7 @@ cp .env.example .env
 Key entries to review:
 - `DATABASE_URL`: defaults to SQLite. Point to Postgres/MySQL when needed.
 - `AUTH_MODE`: `built_in`, `disabled`, or `custom`.
+- `TENANTS_ENABLED`: toggle the `/v1/tenants` router on or off.
 - `AUTO_BUILD_PERMISSIONS` / `ENABLE_SEED_DATA`: keep them `true` for the first run.
 
 ## 3. Run with Docker Compose (recommended)

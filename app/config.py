@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     logging_stdout_level: str = Field(default="INFO")
     logging_db_level: str = Field(default="INFO")
     auth_mode: str = Field(default="built_in", description="built_in | disabled | custom")
+    tenants_enabled: bool = Field(default=True)
 
     @property
     def resolved_logs_db_path(self) -> str:

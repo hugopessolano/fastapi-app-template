@@ -4,9 +4,11 @@ from typing import Iterable, List
 from fastapi import APIRouter
 
 
-def get_router_modules(auth_mode: str | None) -> List[str]:
+def get_router_modules(auth_mode: str | None, tenants_enabled: bool = True) -> List[str]:
     mode = _normalize_auth_mode(auth_mode)
-    modules = ["app.routers.v1.tenants"]
+    modules = []
+    if tenants_enabled:
+        modules.append("app.routers.v1.tenants")
     if mode != "disabled":
         modules.extend(
             [

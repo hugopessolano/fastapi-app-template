@@ -11,6 +11,7 @@ Use this list when adapting the template to a new project or domain.
 - [ ] Set `DATABASE_URL` to the target database (Postgres/MySQL/Cloud).
 - [ ] Rotate `SECRET_KEY`, token expiry, and logging levels.
 - [ ] Decide `AUTH_MODE` (`built_in`, `disabled`, `custom`). Document your choice.
+- [ ] Decide if tenant routing should be enabled (`TENANTS_ENABLED=true`).
 - [ ] If using external services, add new settings fields to `app/config.py`.
 - [ ] Configure `EXTERNAL_DB_URL` (if you need a secondary DB) and use `app/database/external.py` to access it from routers/services.
 

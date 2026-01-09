@@ -12,6 +12,7 @@ from app.endpoints_logic.v1.tenants import (
     update_tenant,
 )
 from app.schemas.tenants_schemas import BaseTenant, TenantCreate, TenantUpdate
+from app.tenants.context import TenantContext, get_tenant_context
 from app.routers.v1 import API_PREFIX
 
 router = APIRouter(
@@ -26,6 +27,7 @@ async def get_tenants(
     response: Response,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
+    tenant_ctx: TenantContext = Depends(get_tenant_context),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     order_by: str = Query("created_at"),
@@ -36,6 +38,7 @@ async def get_tenants(
         response=response,
         db=db,
         auth=auth,
+        tenant_ctx=tenant_ctx,
         page=page,
         page_size=page_size,
         order_by=order_by,
@@ -58,8 +61,15 @@ async def put_tenant(
     payload: TenantUpdate,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
+    tenant_ctx: TenantContext = Depends(get_tenant_context),
 ):
-    return update_tenant(tenant_id=tenant_id, payload=payload, db=db, auth=auth)
+    return update_tenant(
+        tenant_id=tenant_id,
+        payload=payload,
+        db=db,
+        auth=auth,
+        tenant_ctx=tenant_ctx,
+    )
 
 
 @router.delete("/{tenant_id}")
@@ -67,5 +77,11 @@ async def delete_tenant_endpoint(
     tenant_id: str,
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
+    tenant_ctx: TenantContext = Depends(get_tenant_context),
 ):
-    return delete_tenant(tenant_id=tenant_id, db=db, auth=auth)
+    return delete_tenant(
+        tenant_id=tenant_id,
+        db=db,
+        auth=auth,
+        tenant_ctx=tenant_ctx,
+    )

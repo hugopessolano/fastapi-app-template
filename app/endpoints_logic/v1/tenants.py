@@ -13,6 +13,7 @@ from app.routers.utils import (
     order_by_parameter,
 )
 from app.schemas.tenants_schemas import TenantCreate, TenantUpdate
+from app.tenants.context import TenantContext
 
 if TYPE_CHECKING:
     from app.auth.context import AuthContext
@@ -41,6 +42,7 @@ def list_tenants(
     response: Response,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
     page: int,
     page_size: int,
     order_by: str,
@@ -49,11 +51,11 @@ def list_tenants(
     offset = (page - 1) * page_size
     tenants_query = db.query(Tenants)
 
-    if not auth.cross_tenant_allowed:
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
         tenants_query = filter_by_tenant(
             tenants_query,
             Tenants,
-            auth.allowed_tenant_ids,
+            tenant_ctx.allowed_tenant_ids,
             column_name="id",
         )
 
@@ -98,13 +100,14 @@ def update_tenant(
     payload: TenantUpdate,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> Tenants:
     existing_tenant_query = db.query(Tenants).filter(Tenants.id == tenant_id)
-    if not auth.cross_tenant_allowed:
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
         existing_tenant_query = filter_by_tenant(
             existing_tenant_query,
             Tenants,
-            auth.allowed_tenant_ids,
+            tenant_ctx.allowed_tenant_ids,
             column_name="id",
         )
 
@@ -129,13 +132,14 @@ def delete_tenant(
     tenant_id: str,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> None:
     existing_tenant_query = db.query(Tenants).filter(Tenants.id == tenant_id)
-    if not auth.cross_tenant_allowed:
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
         existing_tenant_query = filter_by_tenant(
             existing_tenant_query,
             Tenants,
-            auth.allowed_tenant_ids,
+            tenant_ctx.allowed_tenant_ids,
             column_name="id",
         )
 

@@ -1,12 +1,8 @@
-from dataclasses import dataclass, field
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import Optional
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-
-from app.auth.oauth2 import get_current_user, oauth2_scheme
-from app.config import get_settings
-from app.database.database import get_db
 from app.database.models import Users
 
 
@@ -16,18 +12,31 @@ class AuthContext:
     user: Optional[Users]
     is_authenticated: bool
     cross_tenant_allowed: bool
-    allowed_tenant_ids: List[str] = field(default_factory=list)
 
     @property
     def has_user(self) -> bool:
         return self.user is not None
 
 
+async def _get_token(request: Request) -> str | None:
+    from app.auth.oauth2 import oauth2_scheme
+
+    return await oauth2_scheme(request)
+
+
+def _get_db():
+    from app.database.database import get_db
+
+    yield from get_db()
+
+
 async def get_auth_context(
     request: Request,
-    token: str | None = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
+    token: str | None = Depends(_get_token),
+    db: Session = Depends(_get_db),
 ) -> AuthContext:
+    from app.config import get_settings
+
     settings = get_settings()
     mode = settings.normalized_auth_mode
 
@@ -37,7 +46,6 @@ async def get_auth_context(
             user=None,
             is_authenticated=False,
             cross_tenant_allowed=True,
-            allowed_tenant_ids=[],
         )
 
     if mode == "custom":
@@ -52,13 +60,13 @@ async def get_auth_context(
     if not token:
         raise HTTPException(status_code=401, detail="Missing credentials")
 
+    from app.auth.oauth2 import get_current_user
+
     user = get_current_user(request, token=token, db=db)
-    tenant_ids = [tenant.id for tenant in user.tenants]
 
     return AuthContext(
         mode=mode,
         user=user,
         is_authenticated=True,
         cross_tenant_allowed=user.cross_tenant_allowed,
-        allowed_tenant_ids=tenant_ids,
     )

@@ -14,6 +14,7 @@ from app.routers.utils import (
     order_by_parameter,
     validate_ids,
 )
+from app.tenants.context import TenantContext
 
 _router_logger = None
 
@@ -42,6 +43,7 @@ def list_roles(
     response: Response,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
     page: int,
     page_size: int,
     order_by: str,
@@ -52,8 +54,12 @@ def list_roles(
         joinedload(Roles.permissions).joinedload(RolePermissions.permission)
     )
 
-    if not auth.cross_tenant_allowed:
-        roles_query = filter_by_tenant(roles_query, Roles, auth.allowed_tenant_ids)
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
+        roles_query = filter_by_tenant(
+            roles_query,
+            Roles,
+            tenant_ctx.allowed_tenant_ids,
+        )
 
     calculate_next_and_last_pages(roles_query, page_size, page, request, response)
     roles_query = order_by_parameter(
@@ -74,6 +80,7 @@ def get_role_detail(
     role_id: str,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> BaseRole:
     role_query = (
         db.query(Roles)
@@ -81,8 +88,12 @@ def get_role_detail(
         .filter(Roles.id == role_id)
     )
 
-    if not auth.cross_tenant_allowed:
-        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
+        role_query = filter_by_tenant(
+            role_query,
+            Roles,
+            tenant_ctx.allowed_tenant_ids,
+        )
 
     role = role_query.first()
     if not role:
@@ -99,6 +110,7 @@ def list_roles_by_tenant(
     tenant_id: str,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
     page: int,
     page_size: int,
     order_by: str,
@@ -111,8 +123,12 @@ def list_roles_by_tenant(
         .filter(Roles.tenant_id == tenant_id)
     )
 
-    if not auth.cross_tenant_allowed:
-        roles_query = filter_by_tenant(roles_query, Roles, auth.allowed_tenant_ids)
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
+        roles_query = filter_by_tenant(
+            roles_query,
+            Roles,
+            tenant_ctx.allowed_tenant_ids,
+        )
 
     calculate_next_and_last_pages(roles_query, page_size, page, request, response)
     roles_query = order_by_parameter(
@@ -135,6 +151,7 @@ def create_role(
     payload: RoleCreate,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> BaseRole:
     invalid_permissions = validate_ids(payload.role_permissions, Permissions, db)
     if invalid_permissions:
@@ -143,7 +160,11 @@ def create_role(
             detail=f"Permission with the following ids were not found: {invalid_permissions}",
         )
 
-    if not auth.cross_tenant_allowed and payload.tenant_id not in auth.allowed_tenant_ids:
+    if (
+        tenant_ctx.enabled
+        and not tenant_ctx.cross_tenant_allowed
+        and payload.tenant_id not in tenant_ctx.allowed_tenant_ids
+    ):
         raise HTTPException(
             status_code=403,
             detail=f"User is not allowed to create Roles in tenant {payload.tenant_id}",
@@ -177,10 +198,15 @@ def update_role(
     payload: RoleUpdate,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> BaseRole:
     role_query = db.query(Roles).filter(Roles.id == role_id)
-    if not auth.cross_tenant_allowed:
-        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
+        role_query = filter_by_tenant(
+            role_query,
+            Roles,
+            tenant_ctx.allowed_tenant_ids,
+        )
 
     role_model = role_query.first()
     if not role_model:
@@ -228,10 +254,15 @@ def delete_role(
     role_id: str,
     db: Session,
     auth: AuthContext,
+    tenant_ctx: TenantContext,
 ) -> None:
     role_query = db.query(Roles).filter(Roles.id == role_id)
-    if not auth.cross_tenant_allowed:
-        role_query = filter_by_tenant(role_query, Roles, auth.allowed_tenant_ids)
+    if tenant_ctx.enabled and not tenant_ctx.cross_tenant_allowed:
+        role_query = filter_by_tenant(
+            role_query,
+            Roles,
+            tenant_ctx.allowed_tenant_ids,
+        )
 
     role = role_query.first()
     if role is None:

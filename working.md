@@ -5,12 +5,15 @@ Incluye cambios ya aplicados y pendientes, y se actualiza a medida que avanza el
 
 ## 1) Acoplamiento entre modulos y permisos/autenticacion
 Estado actual
-- La seleccion de routers depende del modo de auth via `app/routers/registry.py`.
-- Si `AUTH_MODE=disabled`, solo se incluye `tenants` y las rutas de auth quedan fuera del esquema.
+- La seleccion de routers depende del modo de auth y de `TENANTS_ENABLED` via `app/routers/registry.py`.
+- Si `AUTH_MODE=disabled`, las rutas de auth quedan fuera del esquema.
+- Si `TENANTS_ENABLED=false`, no se expone `/v1/tenants` sin afectar auth.
 - `build_permissions` crea permisos en base a rutas presentes y no depende de `tenants`.
+- `AuthContext` ya no incluye asignaciones de tenants; eso vive en `TenantContext` (`app/tenants/context.py`).
 
 Implicaciones
 - Las rutas de auth pueden desactivarse sin tocar `app/main.py`.
+- El scoping por tenant es opt-in via `TenantContext`.
 - Los permisos se generan solo para rutas activas.
 
 Expansion de lo que se necesita
