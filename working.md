@@ -68,14 +68,12 @@ Expansion de lo que se necesita
 
 ## 5) Alembic no preparado para uso sencillo
 Estado actual
-- `app/alembic.ini` vive dentro de `app/`, y no lee `.env` ni `app/config.py`.
-- `sqlalchemy.url` en `app/alembic.ini` apunta a `sqlite:///./app.db` (no coincide con `DATABASE_URL` default `sqlite:///./app/app.db`).
-- `app/alembic/env.py` importa `from database.models import *` y depende de `sys.path` modificado, lo que puede ser fragil segun el directorio de ejecucion.
-- No hay instrucciones paso a paso para casos comunes (nueva migration, upgrade, downgrade, cambiar DB).
+- `alembic.ini` esta en la raiz y usa `script_location = app/alembic`.
+- `app/alembic/env.py` ajusta `sqlalchemy.url` con `get_migration_database_url()` y evita imports fragiles.
+- `docs/alembic-guide.md` contiene pasos simples para crear, aplicar y revertir migraciones.
 
 Implicaciones
-- Es facil generar migraciones contra una DB distinta a la que usa la app.
-- Un usuario sin experiencia puede fallar en rutas o en import de modelos.
+- Se reducen errores de ruta y de DB no alineada con `DATABASE_URL`.
 
 Expansion de lo que se necesita
 - Ajustar configuracion para usar `DATABASE_URL` real y rutas consistentes.

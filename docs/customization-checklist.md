@@ -17,6 +17,7 @@ Use this list when adapting the template to a new project or domain.
 ## 3. Database & Migrations
 - [ ] Remove placeholder data (Base Store, admin user) if not needed.
 - [ ] Add new models in `app/database/models/` and run `alembic revision --autogenerate`.
+- [ ] Follow `docs/alembic-guide.md` for step-by-step migration commands.
 - [ ] Clean `app/app-bkp.db` or mount a persistent volume suited for the new environment.
 
 ## 4. Routers & Schemas
