@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database.models import Users
+from app.auth.oauth2 import oauth2_scheme
 
 
 @dataclass
@@ -18,12 +19,6 @@ class AuthContext:
         return self.user is not None
 
 
-async def _get_token(request: Request) -> str | None:
-    from app.auth.oauth2 import oauth2_scheme
-
-    return await oauth2_scheme(request)
-
-
 def _get_db():
     from app.database.database import get_db
 
@@ -32,7 +27,7 @@ def _get_db():
 
 async def get_auth_context(
     request: Request,
-    token: str | None = Depends(_get_token),
+    token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(_get_db),
 ) -> AuthContext:
     from app.config import get_settings
