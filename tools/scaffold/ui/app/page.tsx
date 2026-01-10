@@ -100,6 +100,24 @@ const emptySpec = (): SpecForm => ({
   tests: { enabled: true },
 });
 
+const normalizeSpec = (raw: Partial<SpecForm>): SpecForm => {
+  const base = emptySpec();
+  const endpoints = { ...base.endpoints, ...(raw.endpoints ?? {}) };
+  const tests = { ...base.tests, ...(raw.tests ?? {}) };
+  return {
+    ...base,
+    ...raw,
+    tags: Array.isArray(raw.tags) ? raw.tags : base.tags,
+    fields:
+      Array.isArray(raw.fields) && raw.fields.length > 0
+        ? raw.fields
+        : base.fields,
+    relations: Array.isArray(raw.relations) ? raw.relations : [],
+    endpoints,
+    tests,
+  };
+};
+
 const fieldTypes = ["String", "Integer", "Float", "Boolean", "DateTime"];
 const relationTypes = [
   { value: "belongs_to", label: "Belongs to" },
@@ -267,8 +285,9 @@ export default function ScaffoldStudio() {
     try {
       setSpecPath(path);
       const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`);
-      setSpec(data.spec);
-      setTagsInput((data.spec.tags ?? []).join(", "));
+      const normalized = normalizeSpec(data.spec ?? {});
+      setSpec(normalized);
+      setTagsInput((normalized.tags ?? []).join(", "));
       setStatus({ tone: "success", message: "Spec loaded." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -287,7 +306,7 @@ export default function ScaffoldStudio() {
       const data = await fetchJson(
         `/specs/read?path=${encodeURIComponent(base.path)}`
       );
-      const baseSpec = data.spec as SpecForm;
+      const baseSpec = normalizeSpec(data.spec ?? {});
       const versions = groupedSpecs
         .find((group) => group.name === base.name)
         ?.items.map((item) => item.version) ?? [baseSpec.version];
