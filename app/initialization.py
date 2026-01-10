@@ -6,6 +6,41 @@ from app.logging import child_logger
 
 init_logger = child_logger.bind(module="initialization")
 
+def sync_admin_role_permissions(db: Session, admin_user: Users | None = None) -> int:
+    all_permissions = db.query(Permissions).all()
+    if not all_permissions:
+        init_logger.warning("No permissions found in DB. Consider running build_permissions first.")
+        return 0
+
+    admin_role = db.query(Roles).filter(Roles.name == "admin").first()
+    if not admin_role:
+        admin_role = Roles(name="admin")
+        db.add(admin_role)
+        db.flush()
+
+    role_permissions_links = []
+    existing_links = {
+        link.permission_id
+        for link in db.query(RolePermissions).filter_by(role_id=admin_role.id)
+    }
+    for perm in all_permissions:
+        if perm.id not in existing_links:
+            role_permissions_links.append(
+                RolePermissions(role_id=admin_role.id, permission_id=perm.id)
+            )
+
+    if role_permissions_links:
+        db.add_all(role_permissions_links)
+
+    if admin_user:
+        existing_user_role = db.query(UserRoles).filter_by(
+            user_id=admin_user.id, role_id=admin_role.id
+        ).first()
+        if not existing_user_role:
+            db.add(UserRoles(user_id=admin_user.id, role_id=admin_role.id))
+
+    return len(role_permissions_links)
+
 
 def create_admin_user(check_existing_users: bool, db: Session) -> None:
     """
@@ -16,6 +51,13 @@ def create_admin_user(check_existing_users: bool, db: Session) -> None:
             user_count = db.query(Users).count()
             if user_count > 0:
                 init_logger.info("Users already exist. Skipping admin user creation.")
+                admin_user = db.query(Users).filter(
+                    Users.name == "admin",
+                    Users.email == "admin@admin.com"
+                ).first()
+                synced = sync_admin_role_permissions(db, admin_user=admin_user)
+                if synced:
+                    db.commit()
                 return
 
         init_logger.info("Creating admin user...")
@@ -42,31 +84,7 @@ def create_admin_user(check_existing_users: bool, db: Session) -> None:
         db.add(admin_user)
         db.flush()
 
-        all_permissions = db.query(Permissions).all()
-        if not all_permissions:
-            init_logger.warning("No permissions found in DB. Consider running build_permissions first.")
-
-        admin_role = db.query(Roles).filter(Roles.name == "admin").first()
-        if not admin_role:
-            admin_role = Roles(name="admin")
-            db.add(admin_role)
-            db.flush()
-
-        role_permissions_links = []
-        for perm in all_permissions:
-            existing_link = db.query(RolePermissions).filter_by(role_id=admin_role.id, permission_id=perm.id).first()
-            if not existing_link:
-                role_permissions_links.append(
-                    RolePermissions(role_id=admin_role.id, permission_id=perm.id)
-                )
-
-        if role_permissions_links:
-            db.add_all(role_permissions_links)
-
-        existing_user_role = db.query(UserRoles).filter_by(user_id=admin_user.id, role_id=admin_role.id).first()
-        if not existing_user_role:
-            user_role_link = UserRoles(user_id=admin_user.id, role_id=admin_role.id)
-            db.add(user_role_link)
+        sync_admin_role_permissions(db, admin_user=admin_user)
 
         db.commit()
         init_logger.info("Admin user and role created successfully.")
