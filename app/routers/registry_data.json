@@ -34,6 +34,34 @@
       "requires_auth": true,
       "requires_tenants": false,
       "enabled": true
+    },
+    {
+      "name": "products",
+      "module": "app.routers.v1.products",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "customers",
+      "module": "app.routers.v1.customers",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "orders",
+      "module": "app.routers.v1.orders",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
+    },
+    {
+      "name": "order_items",
+      "module": "app.routers.v1.order_items",
+      "requires_auth": true,
+      "requires_tenants": false,
+      "enabled": true
     }
   ]
 }

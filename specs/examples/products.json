@@ -1,0 +1,38 @@
+{
+  "version": "v1",
+  "name": "product",
+  "plural": "products",
+  "table_name": "products",
+  "tags": ["Products"],
+  "auth_required": true,
+  "tenant_scoped": false,
+  "soft_delete": true,
+  "pagination": true,
+  "ordering": true,
+  "fields": [
+    {"name": "name", "type": "String", "nullable": false, "unique": false},
+    {"name": "sku", "type": "String", "nullable": false, "unique": true},
+    {"name": "price", "type": "Float", "nullable": false, "unique": false}
+  ],
+  "relations": [
+    {
+      "name": "order_items",
+      "type": "has_many",
+      "target": "order_items",
+      "foreign_key": "",
+      "through": "",
+      "back_populates": "product",
+      "nullable": false,
+      "on_delete": "",
+      "soft_delete_cascade": false
+    }
+  ],
+  "endpoints": {
+    "list": true,
+    "get": true,
+    "create": true,
+    "update": true,
+    "delete": true
+  },
+  "tests": {"enabled": true}
+}

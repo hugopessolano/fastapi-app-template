@@ -1,0 +1,38 @@
+{
+  "version": "v1",
+  "name": "customer",
+  "plural": "customers",
+  "table_name": "customers",
+  "tags": ["Customers"],
+  "auth_required": true,
+  "tenant_scoped": false,
+  "soft_delete": true,
+  "pagination": true,
+  "ordering": true,
+  "fields": [
+    {"name": "name", "type": "String", "nullable": false, "unique": false},
+    {"name": "email", "type": "String", "nullable": false, "unique": true},
+    {"name": "phone", "type": "String", "nullable": true, "unique": false}
+  ],
+  "relations": [
+    {
+      "name": "orders",
+      "type": "has_many",
+      "target": "orders",
+      "foreign_key": "",
+      "through": "",
+      "back_populates": "customer",
+      "nullable": false,
+      "on_delete": "",
+      "soft_delete_cascade": false
+    }
+  ],
+  "endpoints": {
+    "list": true,
+    "get": true,
+    "create": true,
+    "update": true,
+    "delete": true
+  },
+  "tests": {"enabled": true}
+}

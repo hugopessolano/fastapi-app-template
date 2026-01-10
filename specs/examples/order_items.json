@@ -1,0 +1,48 @@
+{
+  "version": "v1",
+  "name": "order_item",
+  "plural": "order_items",
+  "table_name": "order_items",
+  "tags": ["Order Items"],
+  "auth_required": true,
+  "tenant_scoped": false,
+  "soft_delete": true,
+  "pagination": true,
+  "ordering": true,
+  "fields": [
+    {"name": "quantity", "type": "Integer", "nullable": false, "unique": false},
+    {"name": "unit_price", "type": "Float", "nullable": false, "unique": false}
+  ],
+  "relations": [
+    {
+      "name": "order",
+      "type": "belongs_to",
+      "target": "orders",
+      "foreign_key": "order_id",
+      "through": "",
+      "back_populates": "items",
+      "nullable": false,
+      "on_delete": "cascade",
+      "soft_delete_cascade": false
+    },
+    {
+      "name": "product",
+      "type": "belongs_to",
+      "target": "products",
+      "foreign_key": "product_id",
+      "through": "",
+      "back_populates": "order_items",
+      "nullable": false,
+      "on_delete": "restrict",
+      "soft_delete_cascade": false
+    }
+  ],
+  "endpoints": {
+    "list": true,
+    "get": true,
+    "create": true,
+    "update": true,
+    "delete": true
+  },
+  "tests": {"enabled": true}
+}

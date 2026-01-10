@@ -1,0 +1,49 @@
+{
+  "version": "v1",
+  "name": "order",
+  "plural": "orders",
+  "table_name": "orders",
+  "tags": ["Orders"],
+  "auth_required": true,
+  "tenant_scoped": false,
+  "soft_delete": true,
+  "pagination": true,
+  "ordering": true,
+  "fields": [
+    {"name": "order_number", "type": "String", "nullable": false, "unique": true},
+    {"name": "status", "type": "String", "nullable": false, "unique": false},
+    {"name": "total", "type": "Float", "nullable": false, "unique": false}
+  ],
+  "relations": [
+    {
+      "name": "customer",
+      "type": "belongs_to",
+      "target": "customers",
+      "foreign_key": "customer_id",
+      "through": "",
+      "back_populates": "orders",
+      "nullable": false,
+      "on_delete": "restrict",
+      "soft_delete_cascade": false
+    },
+    {
+      "name": "items",
+      "type": "has_many",
+      "target": "order_items",
+      "foreign_key": "",
+      "through": "",
+      "back_populates": "order",
+      "nullable": false,
+      "on_delete": "",
+      "soft_delete_cascade": true
+    }
+  ],
+  "endpoints": {
+    "list": true,
+    "get": true,
+    "create": true,
+    "update": true,
+    "delete": true
+  },
+  "tests": {"enabled": true}
+}
