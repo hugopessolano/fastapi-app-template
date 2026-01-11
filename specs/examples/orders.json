@@ -45,5 +45,23 @@
     "update": true,
     "delete": true
   },
-  "tests": {"enabled": true}
+  "tests": {"enabled": true},
+  "schemas": {
+    "create": {
+      "relations": [
+        {"name": "items", "mode": "embedded"}
+      ]
+    },
+    "update": {
+      "relations": [
+        {"name": "items", "mode": "embedded"}
+      ]
+    },
+    "response": {
+      "relations": [
+        {"name": "items", "mode": "embedded"},
+        {"name": "customer", "mode": "embedded"}
+      ]
+    }
+  }
 }

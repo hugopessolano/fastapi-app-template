@@ -427,6 +427,10 @@ class TestScaffold(unittest.TestCase):
             logic_content = logic_path.read_text(encoding="utf-8")
             self.assertIn("apply_nested_relations", logic_content)
             self.assertIn("NESTED_CREATE_RELATIONS", logic_content)
+            self.assertLess(
+                logic_content.index("NESTED_CREATE_RELATIONS"),
+                logic_content.index("SORTABLE_FIELDS_ORDERS"),
+            )
 
     def test_schema_response_embeds_belongs_to(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

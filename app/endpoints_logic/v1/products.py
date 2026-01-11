@@ -56,7 +56,8 @@ def get_product(item_id: str, db: Session) -> Products:
     return item
 
 def create_product(payload: ProductCreate, db: Session) -> Products:
-    item = Products(**payload.model_dump())
+    data = payload.model_dump()
+    item = Products(**data)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -67,7 +68,8 @@ def update_product(item_id: str, payload: ProductUpdate, db: Session) -> Product
     item = db.query(Products).filter(Products.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(item, key, value)
     db.commit()
     db.refresh(item)

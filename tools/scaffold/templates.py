@@ -243,7 +243,6 @@ def logic_template(spec: ResourceSpec) -> str:
             f"        _router_logger = child_logger.bind(router=\"{plural}\")",
             "    return _router_logger",
             "",
-            f"SORTABLE_FIELDS_{plural.upper()} = {{",
         ]
     )
 
@@ -266,6 +265,7 @@ def logic_template(spec: ResourceSpec) -> str:
         lines.append("]")
         lines.append("")
 
+    lines.append(f"SORTABLE_FIELDS_{plural.upper()} = {{")
     for field in spec.fields:
         lines.append(f"    \"{field.name}\": {model_class}.{field.name},")
     lines.extend(

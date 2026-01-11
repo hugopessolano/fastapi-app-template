@@ -1,21 +1,32 @@
+from __future__ import annotations
+
 from pydantic import BaseModel
-from typing import Optional
 from app.schemas.base_schema import BaseSchema
+from typing import Optional
 
-class BaseCustomer(BaseSchema):
+class BaseCustomerCore(BaseSchema):
     name: str
     email: str
-    phone: str
+    phone: Optional[str] = None
 
-class CustomerCreate(BaseModel):
+class BaseCustomer(BaseCustomerCore):
+    pass
+
+class CustomerCreateCore(BaseModel):
     name: str
     email: str
-    phone: str
+    phone: Optional[str] = None
 
-class CustomerUpdate(BaseModel):
+class CustomerCreate(CustomerCreateCore):
+    pass
+
+class CustomerUpdateCore(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+
+class CustomerUpdate(CustomerUpdateCore):
+    pass
 
     class Config:
         orm_mode = True

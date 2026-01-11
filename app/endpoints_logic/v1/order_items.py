@@ -55,7 +55,8 @@ def get_order_item(item_id: str, db: Session) -> OrderItems:
     return item
 
 def create_order_item(payload: OrderItemCreate, db: Session) -> OrderItems:
-    item = OrderItems(**payload.model_dump())
+    data = payload.model_dump()
+    item = OrderItems(**data)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -66,7 +67,8 @@ def update_order_item(item_id: str, payload: OrderItemUpdate, db: Session) -> Or
     item = db.query(OrderItems).filter(OrderItems.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(item, key, value)
     db.commit()
     db.refresh(item)

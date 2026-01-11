@@ -56,7 +56,8 @@ def get_customer(item_id: str, db: Session) -> Customers:
     return item
 
 def create_customer(payload: CustomerCreate, db: Session) -> Customers:
-    item = Customers(**payload.model_dump())
+    data = payload.model_dump()
+    item = Customers(**data)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -67,7 +68,8 @@ def update_customer(item_id: str, payload: CustomerUpdate, db: Session) -> Custo
     item = db.query(Customers).filter(Customers.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Not found")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for key, value in data.items():
         setattr(item, key, value)
     db.commit()
     db.refresh(item)
