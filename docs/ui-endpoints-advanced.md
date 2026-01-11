@@ -10,6 +10,10 @@ Relaciones:
 - `orders` 1 --- * `order_items`
 - `order_items` * --- 1 `products`
 
+Idea base:
+- `belongs_to`: la foreign key vive en este modelo (lado hijo).
+- `has_many`: la foreign key vive en el modelo hijo.
+
 ## 1) Crear los cuatro endpoints base
 
 En la pantalla principal, crea estos endpoints (igual que en el tutorial basico).
@@ -65,6 +69,8 @@ Luego usa "Crear endpoint" para cada uno.
   - `quantity` (Integer, no nullable)
   - `unit_price` (Float, no nullable)
 
+Nota: los campos se agregan en el Model Editor de cada endpoint.
+
 Luego pulsa "Guardar cambios" en cada endpoint.
 
 ## 2) Configurar relaciones en el Model Editor
@@ -77,6 +83,8 @@ Usa el icono de base de datos para abrir el Model Editor.
 
 ![Editar modelos](images/ui-tutorial/advanced-v2/ui-adv-06-edit-icons.png)
 
+El Model Editor define columnas y relaciones en la base de datos.
+
 En la seccion "Relaciones", crea:
 
 ### Orders -> Customers (belongs_to)
@@ -87,12 +95,22 @@ En la seccion "Relaciones", crea:
 - On delete: `restrict`
 - Soft delete cascade: desactivado
 
+Que significa cada campo:
+- `Foreign key`: columna real en la tabla hija (aqui: `orders.customer_id`).
+- `Back populates`: nombre del atributo relacionado en el otro modelo.
+- `On delete`: comportamiento al borrar el padre (DB).
+- `Soft delete cascade`: comportamiento de borrado logico.
+
 ### Orders -> OrderItems (has_many)
 - Tipo: `has_many`
 - Target: `order_items`
 - Back populates: `order`
 - On delete: (vacio o default)
 - Soft delete cascade: activado
+
+Por que:
+- `orders` depende de `customers`, por eso usamos `restrict` al borrar un customer.
+- `order_items` depende de `orders`, por eso permitimos cascada.
 
 Guarda cambios.
 
@@ -131,8 +149,13 @@ Guarda cambios.
 Tip:
 - `Foreign key` es el nombre de la columna en la tabla hija.
 - `Back populates` debe coincidir en ambos modelos.
+- Si no ves la columna (por ejemplo `customer_id`), agregala como campo en el Model Editor.
 
 ![Relaciones](images/ui-tutorial/advanced-v2/ui-adv-07-models-add-relation.png)
+
+Cuando termines, pulsa "Guardar cambios" en el Model Editor.
+
+![Guardar cambios (models)](images/ui-tutorial/advanced-v2/ui-adv-10-models-save.png)
 
 ## 3) Configurar schemas en el Schema Editor
 
@@ -142,7 +165,9 @@ Desde "Editar endpoint", usa el icono de documento para abrir el Schema Editor.
 
 ![Editar schemas](images/ui-tutorial/advanced-v2/ui-adv-06-edit-icons.png)
 
-Define las variantes con estas pestañas:
+El Schema Editor define validaciones de entrada y el formato de respuesta.
+
+Define las variantes con estas pestanas:
 
 ![Variantes](images/ui-tutorial/advanced-v2/ui-adv-08-schemas-variants.png)
 
@@ -150,6 +175,10 @@ En "Relations" define:
 - `create`: `items` como `Embedded`
 - `update`: `items` como `Embedded`
 - `response`: `items` como `Embedded` y `customer` como `Embedded`
+
+Regla rapida:
+- `Embedded` envia y recibe objetos completos.
+- `IDs` solo usa identificadores (mas liviano).
 
 Esto permite:
 - Crear un order con items embebidos.
@@ -159,6 +188,8 @@ Esto permite:
 ![Schema relations](images/ui-tutorial/advanced-v2/ui-adv-09-schema-relations.png)
 
 Guarda cambios.
+
+![Guardar cambios (schemas)](images/ui-tutorial/advanced-v2/ui-adv-11-schemas-save.png)
 
 ## 4) Verificacion rapida en UI
 
