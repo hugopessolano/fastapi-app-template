@@ -14,6 +14,18 @@ Relaciones:
 
 En la pantalla principal, crea estos endpoints (igual que en el tutorial basico).
 
+![Nuevo endpoint](images/ui-tutorial/advanced-v2/ui-adv-01-new-endpoint.png)
+
+Completa la seccion de identidad y rutas para cada endpoint.
+
+![Identidad](images/ui-tutorial/advanced-v2/ui-adv-02-identidad.png)
+
+![Rutas disponibles](images/ui-tutorial/advanced-v2/ui-adv-04-routes.png)
+
+Luego usa "Crear endpoint" para cada uno.
+
+![Crear endpoint](images/ui-tutorial/advanced-v2/ui-adv-03-create-action.png)
+
 ### Customers
 - Spec: `specs/examples/customers.json`
 - Nombre: `customer`
@@ -59,7 +71,11 @@ Luego pulsa "Guardar cambios" en cada endpoint.
 
 Abre "Editar endpoint" para `orders` y entra a "Editar modelos".
 
-![Model editor](images/ui-tutorial/ui-06-models-editor.png)
+![Editar endpoint](images/ui-tutorial/advanced-v2/ui-adv-05-edit-button.png)
+
+Usa el icono de base de datos para abrir el Model Editor.
+
+![Editar modelos](images/ui-tutorial/advanced-v2/ui-adv-06-edit-icons.png)
 
 En la seccion "Relaciones", crea:
 
@@ -116,13 +132,19 @@ Tip:
 - `Foreign key` es el nombre de la columna en la tabla hija.
 - `Back populates` debe coincidir en ambos modelos.
 
-![Relaciones](images/ui-tutorial/ui-07-models-relations.png)
+![Relaciones](images/ui-tutorial/advanced-v2/ui-adv-07-models-add-relation.png)
 
 ## 3) Configurar schemas en el Schema Editor
 
 Abre el Schema Editor para `orders`.
 
-![Schema editor](images/ui-tutorial/ui-08-schemas-editor.png)
+Desde "Editar endpoint", usa el icono de documento para abrir el Schema Editor.
+
+![Editar schemas](images/ui-tutorial/advanced-v2/ui-adv-06-edit-icons.png)
+
+Define las variantes con estas pestañas:
+
+![Variantes](images/ui-tutorial/advanced-v2/ui-adv-08-schemas-variants.png)
 
 En "Relations" define:
 - `create`: `items` como `Embedded`
@@ -134,7 +156,7 @@ Esto permite:
 - Actualizar un order agregando items.
 - Devolver en response el customer y los items.
 
-![Schema relations](images/ui-tutorial/ui-09-schemas-relations.png)
+![Schema relations](images/ui-tutorial/advanced-v2/ui-adv-09-schema-relations.png)
 
 Guarda cambios.
 
