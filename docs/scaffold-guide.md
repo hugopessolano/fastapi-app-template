@@ -82,7 +82,10 @@ Example:
 
 Notes:
 - `constraints` supports: `min_length`, `max_length`, `pattern`, `ge`, `le`, `gt`, `lt`, `min_items`, `max_items`.
-- Embedding relations in request payloads requires custom logic in the endpoints.
+- `create.relations` and `update.relations` accept `embedded`, `ids`, or `omit`.
+- Embedded relations in create/update append related records by default; they do not delete or replace existing children.
+- Embedded payloads use `*CreateCore` / `*UpdateCore` (no nested relations) to avoid recursive payloads.
+- `response.relations` can embed `belongs_to` relations with `Base*Core` (fields only).
 
 ## 3) Create vs Modify
 - `create`: creates new files and updates the router registry.

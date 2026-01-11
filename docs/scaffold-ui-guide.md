@@ -21,6 +21,10 @@ General settings screen: `http://127.0.0.1:3000/settings`
 Model editor: `http://127.0.0.1:3000/models`
 Schema editor: `http://127.0.0.1:3000/schemas`
 
+Schema editor notes:
+- Tabs for `create`, `update`, `response`, and `custom`.
+- Relation modes support `embedded`, `ids`, and `omit` per variant.
+
 ## 2.1) Docker Compose
 From the repo root:
 ```

@@ -105,13 +105,21 @@ def schema_template(spec: ResourceSpec) -> str:
     create_fields = [field for field in spec.schemas.create.fields if field.enabled]
     update_fields = [field for field in spec.schemas.update.fields if field.enabled]
     response_fields = [field for field in spec.schemas.response.fields if field.enabled]
+    create_relations = spec.schemas.create.relations
+    update_relations = spec.schemas.update.relations
     response_relations = spec.schemas.response.relations
 
-    relation_fields = build_relation_schema_fields(spec, response_relations)
-    all_response_fields = response_fields + relation_fields
+    create_relation_fields = build_relation_schema_fields(spec, create_relations, variant="create")
+    update_relation_fields = build_relation_schema_fields(spec, update_relations, variant="update")
+    response_relation_fields = build_relation_schema_fields(spec, response_relations, variant="response")
+    all_response_fields = response_fields + response_relation_fields
 
-    required_imports = gather_schema_imports(create_fields + update_fields + all_response_fields)
-    relation_imports = build_relation_imports(spec, response_relations)
+    required_imports = gather_schema_imports(
+        create_fields + create_relation_fields + update_fields + update_relation_fields + all_response_fields
+    )
+    relation_imports = build_relation_imports(spec, create_relations, variant="create")
+    relation_imports += build_relation_imports(spec, update_relations, variant="update")
+    relation_imports += build_relation_imports(spec, response_relations, variant="response")
     lines = [
         "from __future__ import annotations",
         "",
@@ -131,7 +139,7 @@ def schema_template(spec: ResourceSpec) -> str:
     if required_imports["email"]:
         lines.append("from pydantic import EmailStr")
     if relation_imports:
-        lines.extend(relation_imports)
+        lines.extend(sorted(set(relation_imports)))
     lines.extend(
         [
             "",
@@ -144,22 +152,34 @@ def schema_template(spec: ResourceSpec) -> str:
         lines.append("    pass")
     lines.append("")
     lines.append(f"class Base{base_name}(Base{base_name}Core):")
-    if relation_fields:
-        for field in relation_fields:
+    if response_relation_fields:
+        for field in response_relation_fields:
             lines.append(f"    {render_schema_field(field)}")
     else:
         lines.append("    pass")
     lines.append("")
-    lines.append(f"class {base_name}Create(BaseModel):")
+    lines.append(f"class {base_name}CreateCore(BaseModel):")
     for field in create_fields:
         lines.append(f"    {render_schema_field(field)}")
     if not create_fields:
         lines.append("    pass")
     lines.append("")
-    lines.append(f"class {base_name}Update(BaseModel):")
+    lines.append(f"class {base_name}Create({base_name}CreateCore):")
+    for field in create_relation_fields:
+        lines.append(f"    {render_schema_field(field)}")
+    if not create_relation_fields:
+        lines.append("    pass")
+    lines.append("")
+    lines.append(f"class {base_name}UpdateCore(BaseModel):")
     for field in update_fields:
         lines.append(f"    {render_schema_field(field)}")
     if not update_fields:
+        lines.append("    pass")
+    lines.append("")
+    lines.append(f"class {base_name}Update({base_name}UpdateCore):")
+    for field in update_relation_fields:
+        lines.append(f"    {render_schema_field(field)}")
+    if not update_relation_fields:
         lines.append("    pass")
     lines.append("")
     lines.append("    class Config:")
@@ -181,6 +201,13 @@ def logic_template(spec: ResourceSpec) -> str:
     delete_name = f"delete_{spec.name}"
     get_name = f"get_{spec.name}"
 
+    nested_create_relations = embedded_relation_specs(spec, variant="create")
+    nested_update_relations = embedded_relation_specs(spec, variant="update")
+    nested_targets = {
+        to_class_name(relation.target) for relation in nested_create_relations + nested_update_relations
+    }
+    model_imports = sorted({model_class, *nested_targets})
+
     lines = [
         "from __future__ import annotations",
         "",
@@ -189,7 +216,7 @@ def logic_template(spec: ResourceSpec) -> str:
         "from fastapi import HTTPException, Request, Response",
         "from sqlalchemy.orm import Session",
         "",
-        f"from app.database.models import {model_class}",
+        f"from app.database.models import {', '.join(model_imports)}",
         "from app.database.soft_delete import soft_delete_by_id",
         "from app.routers.utils import calculate_next_and_last_pages, order_by_parameter, filter_by_tenant",
         f"from app.schemas.{plural}_schemas import {base_name}Create, {base_name}Update",
@@ -197,6 +224,8 @@ def logic_template(spec: ResourceSpec) -> str:
 
     if spec.tenant_scoped:
         lines.append("from app.tenants.context import TenantContext")
+    if nested_create_relations or nested_update_relations:
+        lines.append("from app.endpoints_logic.nested import NestedRelationConfig, apply_nested_relations")
 
     lines.extend(
         [
@@ -217,6 +246,25 @@ def logic_template(spec: ResourceSpec) -> str:
             f"SORTABLE_FIELDS_{plural.upper()} = {{",
         ]
     )
+
+    if nested_create_relations:
+        lines.append("NESTED_CREATE_RELATIONS = [")
+        for relation in nested_create_relations:
+            target_class = to_class_name(relation.target)
+            lines.append(
+                f"    NestedRelationConfig(name=\"{relation.name}\", relation_type=\"{relation.type}\", target_model={target_class}),"
+            )
+        lines.append("]")
+        lines.append("")
+    if nested_update_relations:
+        lines.append("NESTED_UPDATE_RELATIONS = [")
+        for relation in nested_update_relations:
+            target_class = to_class_name(relation.target)
+            lines.append(
+                f"    NestedRelationConfig(name=\"{relation.name}\", relation_type=\"{relation.type}\", target_model={target_class}),"
+            )
+        lines.append("]")
+        lines.append("")
 
     for field in spec.fields:
         lines.append(f"    \"{field.name}\": {model_class}.{field.name},")
@@ -275,7 +323,17 @@ def logic_template(spec: ResourceSpec) -> str:
     lines.append(
         f"def {create_name}(payload: {base_name}Create, db: Session) -> {model_class}:"
     )
-    lines.append(f"    item = {model_class}(**payload.model_dump())")
+    lines.append("    data = payload.model_dump()")
+    if nested_create_relations:
+        lines.append("    nested_payloads = {")
+        for relation in nested_create_relations:
+            lines.append(f"        \"{relation.name}\": data.pop(\"{relation.name}\", None),")
+        lines.append("    }")
+    lines.append(f"    item = {model_class}(**data)")
+    if nested_create_relations:
+        lines.append(
+            "    apply_nested_relations(item, nested_payloads, NESTED_CREATE_RELATIONS, db, mode=\"create\")"
+        )
     lines.append("    db.add(item)")
     lines.append("    db.commit()")
     lines.append("    db.refresh(item)")
@@ -289,8 +347,18 @@ def logic_template(spec: ResourceSpec) -> str:
     lines.append(f"    item = db.query({model_class}).filter({model_class}.id == item_id).first()")
     lines.append("    if not item:")
     lines.append("        raise HTTPException(status_code=404, detail=\"Not found\")")
-    lines.append("    for key, value in payload.model_dump(exclude_unset=True).items():")
+    lines.append("    data = payload.model_dump(exclude_unset=True)")
+    if nested_update_relations:
+        lines.append("    nested_payloads = {")
+        for relation in nested_update_relations:
+            lines.append(f"        \"{relation.name}\": data.pop(\"{relation.name}\", None),")
+        lines.append("    }")
+    lines.append("    for key, value in data.items():")
     lines.append("        setattr(item, key, value)")
+    if nested_update_relations:
+        lines.append(
+            "    apply_nested_relations(item, nested_payloads, NESTED_UPDATE_RELATIONS, db, mode=\"update\")"
+        )
     lines.append("    db.commit()")
     lines.append("    db.refresh(item)")
     lines.append("    _get_logger().bind(action=\"update\").info(\"Updated record\")")
@@ -577,9 +645,24 @@ def build_schema_fields(spec: ResourceSpec) -> list[FieldSpec]:
     return fields
 
 
+def embedded_relation_specs(spec: ResourceSpec, *, variant: str) -> list[RelationSpec]:
+    if variant == "create":
+        configured = spec.schemas.create.relations
+    elif variant == "update":
+        configured = spec.schemas.update.relations
+    else:
+        configured = []
+    names = {relation.name for relation in configured if relation.mode == "embedded"}
+    if not names:
+        return []
+    return [relation for relation in spec.relations if relation.name in names]
+
+
 def build_relation_schema_fields(
     spec: ResourceSpec,
     relations: list[SchemaRelationSpec],
+    *,
+    variant: str,
 ) -> list[SchemaFieldSpec]:
     relation_map = {relation.name: relation for relation in spec.relations}
     fields: list[SchemaFieldSpec] = []
@@ -590,10 +673,11 @@ def build_relation_schema_fields(
         if relation.mode != "embedded":
             continue
         target_base = schema_target_base(source.target)
+        target_schema = schema_target_variant(target_base, variant)
         field_type = (
-            f"List[Base{target_base}Core]"
+            f"List[{target_schema}]"
             if source.type in {"has_many", "many_to_many"}
-            else f"Base{target_base}Core"
+            else target_schema
         )
         fields.append(
             SchemaFieldSpec(
@@ -613,6 +697,8 @@ def build_relation_schema_fields(
 def build_relation_imports(
     spec: ResourceSpec,
     relations: list[SchemaRelationSpec],
+    *,
+    variant: str,
 ) -> list[str]:
     relation_map = {relation.name: relation for relation in spec.relations}
     imports = []
@@ -624,19 +710,28 @@ def build_relation_imports(
         if relation.mode != "embedded":
             continue
         target_base = schema_target_base(source.target)
+        target_schema = schema_target_variant(target_base, variant)
         module = source.target
-        key = (module, target_base)
+        key = (module, target_schema)
         if key in seen:
             continue
         seen.add(key)
         imports.append(
-            f"from app.schemas.{module}_schemas import Base{target_base}Core"
+            f"from app.schemas.{module}_schemas import {target_schema}"
         )
     return imports
 
 
 def schema_target_base(target: str) -> str:
     return to_class_name(target.rstrip("s"))
+
+
+def schema_target_variant(base: str, variant: str) -> str:
+    if variant == "create":
+        return f"{base}CreateCore"
+    if variant == "update":
+        return f"{base}UpdateCore"
+    return f"Base{base}Core"
 
 
 def gather_schema_imports(fields: list[SchemaFieldSpec]) -> dict[str, bool]:

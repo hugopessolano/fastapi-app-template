@@ -327,3 +327,154 @@ class TestScaffold(unittest.TestCase):
             schema_path = root / "app" / "schemas" / "widgets_schemas.py"
             schema_content = schema_path.read_text(encoding="utf-8")
             self.assertIn("name: str = Field(..., min_length=2, max_length=40)", schema_content)
+
+    def test_schema_create_embeds_relations(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "order",
+                "plural": "orders",
+                "table_name": "orders",
+                "tags": ["Orders"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "number", "type": "String", "nullable": False, "unique": True}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "relations": [
+                    {
+                        "name": "items",
+                        "type": "has_many",
+                        "target": "order_items",
+                        "back_populates": "order",
+                    },
+                ],
+                "schemas": {
+                    "create": {
+                        "relations": [{"name": "items", "mode": "embedded"}],
+                    }
+                },
+            }
+            spec_path = root / "specs" / "orders.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            schema_path = root / "app" / "schemas" / "orders_schemas.py"
+            schema_content = schema_path.read_text(encoding="utf-8")
+            self.assertIn("items: Optional[List[OrderItemCreateCore]] = None", schema_content)
+            self.assertIn("from app.schemas.order_items_schemas import OrderItemCreateCore", schema_content)
+
+    def test_logic_template_handles_nested_create(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "order",
+                "plural": "orders",
+                "table_name": "orders",
+                "tags": ["Orders"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "number", "type": "String", "nullable": False, "unique": True}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "relations": [
+                    {
+                        "name": "items",
+                        "type": "has_many",
+                        "target": "order_items",
+                        "back_populates": "order",
+                    },
+                ],
+                "schemas": {
+                    "create": {
+                        "relations": [{"name": "items", "mode": "embedded"}],
+                    }
+                },
+            }
+            spec_path = root / "specs" / "orders.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            logic_path = root / "app" / "endpoints_logic" / "v1" / "orders.py"
+            logic_content = logic_path.read_text(encoding="utf-8")
+            self.assertIn("apply_nested_relations", logic_content)
+            self.assertIn("NESTED_CREATE_RELATIONS", logic_content)
+
+    def test_schema_response_embeds_belongs_to(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "order",
+                "plural": "orders",
+                "table_name": "orders",
+                "tags": ["Orders"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "number", "type": "String", "nullable": False, "unique": True}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "relations": [
+                    {
+                        "name": "customer",
+                        "type": "belongs_to",
+                        "target": "customers",
+                        "foreign_key": "customer_id",
+                        "nullable": False,
+                    },
+                ],
+                "schemas": {
+                    "response": {
+                        "relations": [{"name": "customer", "mode": "embedded"}],
+                    }
+                },
+            }
+            spec_path = root / "specs" / "orders.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            schema_path = root / "app" / "schemas" / "orders_schemas.py"
+            schema_content = schema_path.read_text(encoding="utf-8")
+            self.assertIn("customer: Optional[BaseCustomerCore] = None", schema_content)
+            self.assertIn("from app.schemas.customers_schemas import BaseCustomerCore", schema_content)

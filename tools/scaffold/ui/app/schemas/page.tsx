@@ -351,7 +351,8 @@ const mergeSchemaFields = (
 
 const mergeSchemaRelations = (
   relations: RelationForm[],
-  overrides: any[] = []
+  overrides: any[] = [],
+  defaultMode: (relation: RelationForm) => SchemaRelationForm["mode"]
 ) => {
   const overrideMap = new Map(
     overrides.filter((relation) => relation?.name).map((relation) => [
@@ -362,7 +363,7 @@ const mergeSchemaRelations = (
   return relations.map((relation) => ({
     name: relation.name,
     mode: (overrideMap.get(relation.name)?.mode ??
-      defaultRelationMode(relation)) as SchemaRelationForm["mode"],
+      defaultMode(relation)) as SchemaRelationForm["mode"],
   }));
 };
 
@@ -377,6 +378,10 @@ const normalizeSchemas = (spec: SpecForm, rawSchemas?: any): SchemaSpecForm => {
   const responseDefaults = baseFields.map((field) =>
     buildSchemaField(field, !field.nullable, "model")
   );
+  const createDefaultMode = (relation: RelationForm) =>
+    relation.type === "belongs_to" ? "ids" : "omit";
+  const updateDefaultMode = (relation: RelationForm) =>
+    relation.type === "belongs_to" ? "ids" : "omit";
   return {
     create: {
       fields: mergeSchemaFields(
@@ -384,7 +389,11 @@ const normalizeSchemas = (spec: SpecForm, rawSchemas?: any): SchemaSpecForm => {
         rawSchemas?.create?.fields ?? [],
         undefined
       ),
-      relations: rawSchemas?.create?.relations ?? [],
+      relations: mergeSchemaRelations(
+        spec.relations,
+        rawSchemas?.create?.relations ?? [],
+        createDefaultMode
+      ),
     },
     update: {
       fields: mergeSchemaFields(
@@ -392,7 +401,11 @@ const normalizeSchemas = (spec: SpecForm, rawSchemas?: any): SchemaSpecForm => {
         rawSchemas?.update?.fields ?? [],
         false
       ),
-      relations: rawSchemas?.update?.relations ?? [],
+      relations: mergeSchemaRelations(
+        spec.relations,
+        rawSchemas?.update?.relations ?? [],
+        updateDefaultMode
+      ),
     },
     response: {
       fields: mergeSchemaFields(
@@ -402,7 +415,8 @@ const normalizeSchemas = (spec: SpecForm, rawSchemas?: any): SchemaSpecForm => {
       ),
       relations: mergeSchemaRelations(
         spec.relations,
-        rawSchemas?.response?.relations ?? []
+        rawSchemas?.response?.relations ?? [],
+        defaultRelationMode
       ),
     },
     custom: (rawSchemas?.custom ?? []).map((schema: any) => ({
@@ -680,12 +694,16 @@ export default function SchemaEditor() {
     }));
   };
 
-  const updateRelationMode = (index: number, mode: SchemaRelationForm["mode"]) =>
+  const updateRelationMode = (
+    variant: "create" | "update" | "response",
+    index: number,
+    mode: SchemaRelationForm["mode"]
+  ) =>
     setSchemas((current) => ({
       ...current,
-      response: {
-        ...current.response,
-        relations: current.response.relations.map((relation, idx) =>
+      [variant]: {
+        ...current[variant],
+        relations: current[variant].relations.map((relation, idx) =>
           idx === index ? { ...relation, mode } : relation
         ),
       },
@@ -969,6 +987,8 @@ export default function SchemaEditor() {
 
   const currentVariant =
     activeTab === "custom" ? schemas.create : schemas[activeTab];
+  const relationVariant =
+    activeTab === "custom" ? [] : schemas[activeTab].relations;
 
   return (
     <main className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-10">
@@ -1188,13 +1208,17 @@ export default function SchemaEditor() {
                     </Button>
                   </Section>
 
-                  {activeTab === "response" ? (
+                  {relationVariant.length > 0 ? (
                     <Section
                       title="Relaciones"
-                      info="Define si la respuesta embebe o reduce a IDs."
+                      info={
+                        activeTab === "response"
+                          ? "Define si la respuesta embebe o reduce a IDs."
+                          : "Configura si el payload acepta objetos embebidos."
+                      }
                     >
                       <div className="space-y-3">
-                        {schemas.response.relations.map((relation, index) => (
+                        {relationVariant.map((relation, index) => (
                           <div
                             key={relation.name}
                             className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 md:flex-row md:items-center md:justify-between"
@@ -1214,6 +1238,7 @@ export default function SchemaEditor() {
                                 value={relation.mode}
                                 onChange={(event) =>
                                   updateRelationMode(
+                                    activeTab as "create" | "update" | "response",
                                     index,
                                     event.target.value as SchemaRelationForm["mode"]
                                   )
@@ -1226,7 +1251,7 @@ export default function SchemaEditor() {
                                   </option>
                                 ))}
                               </select>
-                              <InfoTip text="IDs mantiene solo el FK, Embedded agrega el objeto relacionado." />
+                              <InfoTip text="IDs mantiene solo el FK, Embedded crea/adjunta relaciones con variantes Core (sin relaciones internas), Omit ignora el campo." />
                             </div>
                           </div>
                         ))}
