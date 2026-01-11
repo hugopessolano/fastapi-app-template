@@ -4,41 +4,33 @@ Este tutorial es el equivalente UI del flujo manual. No vas a escribir codigo: t
 
 Objetivo: crear un endpoint `categories` con `name` y `description`.
 
-## 0) Abrir la UI y ubicar las secciones
+## 0) Estado de la UI
 
-Entra a la UI y confirma que ves:
-- Listado de endpoints (izquierda).
-- Formulario de creacion/edicion (centro-derecha).
-- Estado de la API (arriba derecha).
+Antes de empezar, confirma:
+- "API Status" dice "Ready".
+- No hay indicador "Compiling..." en pantalla. Si aparece, espera a que termine antes de continuar.
 
-![Home UI](images/ui-tutorial/ui-01-home.png)
+## 1) Crear un endpoint nuevo
 
-## 1) Opcional: configurar defaults globales
+Pulsa "Nuevo endpoint".
 
-Si quieres que los nuevos endpoints hereden defaults (auth, rate limit, cache, etc), entra a "Configuracion general".
+![Nuevo endpoint](images/ui-tutorial/basic-v2/ui-basic-02-new-endpoint.png)
 
-![Configuracion general](images/ui-tutorial/ui-05-settings.png)
+## 2) Completar identidad del endpoint
 
-Notas rapidas:
-- `Auth mode` controla si los endpoints con auth se cargan o no.
-- `Auto build permissions` crea permisos al iniciar la app.
-- `Tenants enabled` activa o desactiva el scope por tenant.
+La seccion "Identidad" define como se llama el recurso y donde se guarda su spec. En la imagen se resaltan los campos clave.
 
-Vuelve a la pantalla principal con "Volver a endpoints".
+![Identidad](images/ui-tutorial/basic-v2/ui-basic-03-identidad.png)
 
-## 2) Crear un endpoint nuevo
+Que significa cada campo:
+- Ruta del spec: archivo JSON donde vive la definicion (ej: `specs/examples/categories.json`).
+- Version: prefijo de ruta (`v1`).
+- Nombre: singular (`category`).
+- Plural: plural y ruta base (`categories`).
+- Tabla: nombre real en la base (`categories`).
+- Tags: grupo en Swagger (`Categories`).
 
-Pulsa "Nuevo endpoint". Veras el formulario "Crear endpoint".
-
-Campos de identidad (que significan):
-- `Ruta del spec`: archivo donde se guarda el JSON del spec. Recomendado: `specs/examples/categories.json`.
-- `Version`: prefijo de ruta (ej: `v1`).
-- `Nombre`: singular del recurso (`category`).
-- `Plural`: plural del recurso (`categories`).
-- `Tabla`: nombre real de la tabla (`categories`).
-- `Tags`: grupo en Swagger (`Categories`).
-
-Ejemplo de valores:
+Valores sugeridos:
 - Ruta del spec: `specs/examples/categories.json`
 - Version: `v1`
 - Nombre: `category`
@@ -46,73 +38,77 @@ Ejemplo de valores:
 - Tabla: `categories`
 - Tags: `Categories`
 
-## 3) Definir los campos del modelo
+Tip: evita espacios en la ruta del spec y usa nombres consistentes (plural y tabla en minuscula).
 
-En la seccion "Campos":
-- `name`: tipo `String`, `Nullable` desactivado, `Unique` activado.
-- `description`: tipo `String`, `Nullable` activado, `Unique` desactivado.
+## 3) Seguridad y comportamiento
 
-Conceptos:
-- `Nullable`: permite guardar null en la base de datos.
-- `Unique`: obliga a que no se repita el valor.
-- `Tipo`: tipo SQLAlchemy base (String, Integer, Float, Boolean, DateTime, etc).
+Estos toggles definen el comportamiento general del endpoint.
 
-## 4) Seguridad, comportamiento y rutas
+![Seguridad y comportamiento](images/ui-tutorial/basic-v2/ui-basic-04-security-behavior.png)
 
-Selecciona:
-- `Auth required`: activado si quieres proteger con login.
-- `Tenant scoped`: solo si tu app usa tenants.
-- `Soft delete`: activado para borrado logico.
-- `Pagination` y `Ordering`: activados para listados.
-- `Tests enabled`: activado si quieres tests generados.
+Recomendado para un endpoint simple:
+- Auth required: activado
+- Soft delete: activado
+- Pagination / Ordering: activado
+- Tests enabled: activado
 
-En "Rutas disponibles":
-- Activa `LIST`, `GET`, `CREATE`, `UPDATE`, `DELETE`.
+## 4) Rutas disponibles
+
+Activa las rutas que quieres exponer en la API. En la imagen se resaltan las rutas del CRUD.
+
+![Rutas disponibles](images/ui-tutorial/basic-v2/ui-basic-05-routes.png)
+
+Para un CRUD completo:
+- LIST, GET, CREATE, UPDATE, DELETE
 
 ## 5) Crear el endpoint
 
-Pulsa "Crear endpoint".
+Pulsa "Crear endpoint". Esto genera el spec, el modelo, el schema, el router y la logica.
 
-Que pasa internamente:
-- Se crea el spec JSON en la ruta indicada.
-- Se generan modelo, schema, logica y router.
-- Se agrega el router a `registry_data.json`.
-- Se generan tests si esta activado.
+![Crear endpoint](images/ui-tutorial/basic-v2/ui-basic-06-create-action.png)
 
-Tip: si no ves el endpoint en la lista, usa "Refresh list".
+Si no aparece en la lista, pulsa "Refresh list".
 
-## 6) Editar un endpoint existente
+## 6) Entrar a edicion del endpoint
 
-En la lista, pulsa "Editar" sobre el endpoint creado. Veras el formulario de edicion.
+En la lista, usa "Editar" para abrir el editor del endpoint.
 
-![Editar endpoint](images/ui-tutorial/ui-02-edit-endpoint.png)
+![Editar endpoint](images/ui-tutorial/basic-v2/ui-basic-07-edit-button.png)
 
-Cambios comunes:
-- Ajustar `Tags`.
-- Habilitar/Deshabilitar endpoints en "Rutas disponibles".
-- Cambiar defaults de seguridad.
+## 7) Editar modelos y definir campos
 
-Pulsa "Guardar cambios" para regenerar el codigo.
+Desde la barra del editor, abre el Model Editor. El icono con forma de base de datos abre modelos, el icono de llaves abre schemas.
 
-## 7) Ir a modelos o schemas desde la UI
+![Editar modelos y schemas](images/ui-tutorial/basic-v2/ui-basic-08-edit-icons.png)
 
-En la barra de "Editar endpoint" veras dos iconos:
-- "Editar modelos"
-- "Editar schemas"
+En el Model Editor agrega los campos:
+- `name`: String, Nullable false, Unique true.
+- `description`: String, Nullable true, Unique false.
 
-Esos accesos abren pantallas separadas.
+![Add field](images/ui-tutorial/basic-v2/ui-basic-09-models-add-field.png)
 
-Schemas:
-![Schemas](images/ui-tutorial/ui-03-schemas.png)
+En la imagen se resalta el boton "Add field".
 
-Models:
-![Models](images/ui-tutorial/ui-04-models.png)
+Cuando termines, pulsa "Guardar cambios" en el Model Editor.
 
-## 8) Checklist rapido (errores comunes)
+## 8) Editar schemas y validaciones
 
-- `Nombre`, `Plural` y `Tabla` no coinciden (rompe rutas o DB).
-- `Auth required` activo pero `AUTH_MODE=disabled` en `.env`.
-- No refrescaste la lista despues de crear.
-- Cambiaste campos sin "Guardar cambios".
+Abre el Schema Editor. Usa las pestanas CREATE/UPDATE/RESPONSE para ajustar:
+- Campos requeridos en create.
+- Campos opcionales en update.
+- Campos que se devuelven en response.
+
+![Schema variants](images/ui-tutorial/basic-v2/ui-basic-10-schemas-variants.png)
+
+En la imagen se resaltan las pestanas de variantes.
+
+Cuando termines, pulsa "Guardar cambios" en el Schema Editor.
+
+## 9) Checklist rapido (errores comunes)
+
+- Nombre/Plural/Tabla no coinciden.
+- Auth required activo pero `AUTH_MODE=disabled` en `.env`.
+- Se olvidaron de guardar cambios en Model/Schema editor.
+- La app estaba en "Compiling..." y el spec no se aplico.
 
 Con esto ya puedes crear endpoints simples desde la UI sin tocar codigo.
