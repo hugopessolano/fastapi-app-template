@@ -87,6 +87,21 @@ El Model Editor define columnas y relaciones en la base de datos.
 
 En la seccion "Relaciones", crea:
 
+Opciones de campos (resumen):
+- Tipo: define el tipo real de la columna en la base.
+- Nullable: permite o no valores nulos.
+- Unique: agrega una restriccion unica en la tabla.
+- Remove: elimina el campo del modelo.
+
+Tipos comunes:
+- String: nombres, descripciones, codigos.
+- Integer: cantidades y contadores.
+- Float: precios o montos.
+- Boolean: flags (true/false).
+- DateTime: fechas y timestamps.
+
+![Campos en el Model Editor](images/ui-tutorial/advanced-v2/ui-adv-12-models-fields.png)
+
 ### Orders -> Customers (belongs_to)
 - Tipo: `belongs_to`
 - Target: `customers`
@@ -176,9 +191,22 @@ En "Relations" define:
 - `update`: `items` como `Embedded`
 - `response`: `items` como `Embedded` y `customer` como `Embedded`
 
+Opciones de campos en schemas:
+- Tipo: valida el dato que llega.
+- Required: el campo debe estar presente.
+- Enabled: si esta apagado, el campo no se usa en esa variante.
+- Default: valor por defecto si no llega en el payload.
+- Description: aparece en Swagger.
+- Example: ejemplo mostrado en Swagger.
+
+![Campos en el Schema Editor](images/ui-tutorial/advanced-v2/ui-adv-13-schemas-fields.png)
+
 Regla rapida:
 - `Embedded` envia y recibe objetos completos.
 - `IDs` solo usa identificadores (mas liviano).
+- `Omit` excluye la relacion en esa variante.
+
+![Relaciones en schemas](images/ui-tutorial/advanced-v2/ui-adv-14-schemas-relations.png)
 
 Esto permite:
 - Crear un order con items embebidos.
