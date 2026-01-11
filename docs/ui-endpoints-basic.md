@@ -24,11 +24,11 @@ La seccion "Identidad" define como se llama el recurso y donde se guarda su spec
 
 Que significa cada campo:
 - Ruta del spec: archivo JSON donde vive la definicion (ej: `specs/examples/categories.json`).
-- Version: prefijo de ruta (`v1`).
-- Nombre: singular (`category`).
-- Plural: plural y ruta base (`categories`).
-- Tabla: nombre real en la base (`categories`).
-- Tags: grupo en Swagger (`Categories`).
+- Version: prefijo de ruta (`v1`). Esto define el path final: `/v1/categories`.
+- Nombre: singular (`category`). Se usa en nombres internos y modelos.
+- Plural: plural y ruta base (`categories`). Se usa en el path y el router.
+- Tabla: nombre real en la base (`categories`). Se usa para crear la tabla.
+- Tags: grupo en Swagger (`Categories`). Organiza los endpoints en la UI de docs.
 
 Valores sugeridos:
 - Ruta del spec: `specs/examples/categories.json`
@@ -52,6 +52,11 @@ Recomendado para un endpoint simple:
 - Pagination / Ordering: activado
 - Tests enabled: activado
 
+Nota rapida:
+- Soft delete evita borrados fisicos.
+- Pagination/Ordering agregan query params en los listados.
+- Tests enabled genera tests base para el recurso.
+
 ## 4) Rutas disponibles
 
 Activa las rutas que quieres exponer en la API. En la imagen se resaltan las rutas del CRUD.
@@ -68,6 +73,13 @@ Pulsa "Crear endpoint". Esto genera el spec, el modelo, el schema, el router y l
 ![Crear endpoint](images/ui-tutorial/basic-v2/ui-basic-06-create-action.png)
 
 Si no aparece en la lista, pulsa "Refresh list".
+
+Se generan estos archivos (nombres aproximados):
+- Spec en `specs/examples/categories.json`
+- Modelo en `app/database/models/categories_models.py`
+- Schemas en `app/schemas/categories_schemas.py`
+- Router en `app/routers/v1/categories.py`
+- Logica en `app/endpoints_logic/v1/categories.py`
 
 ## 6) Entrar a edicion del endpoint
 
@@ -91,6 +103,8 @@ En la imagen se resalta el boton "Add field".
 
 Cuando termines, pulsa "Guardar cambios" en el Model Editor.
 
+![Guardar cambios (models)](images/ui-tutorial/basic-v2/ui-basic-11-models-save.png)
+
 ## 8) Editar schemas y validaciones
 
 Abre el Schema Editor. Usa las pestanas CREATE/UPDATE/RESPONSE para ajustar:
@@ -103,6 +117,13 @@ Abre el Schema Editor. Usa las pestanas CREATE/UPDATE/RESPONSE para ajustar:
 En la imagen se resaltan las pestanas de variantes.
 
 Cuando termines, pulsa "Guardar cambios" en el Schema Editor.
+
+![Guardar cambios (schemas)](images/ui-tutorial/basic-v2/ui-basic-12-schemas-save.png)
+
+Idea base de las variantes:
+- CREATE valida el body de creacion.
+- UPDATE valida el body de actualizacion.
+- RESPONSE define que campos se devuelven en la API.
 
 ## 9) Checklist rapido (errores comunes)
 
