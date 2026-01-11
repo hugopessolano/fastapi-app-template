@@ -391,6 +391,10 @@ def router_template(spec: ResourceSpec) -> str:
     update_name = f"update_{spec.name}"
     delete_name = f"delete_{spec.name}"
     get_name = f"get_{spec.name}"
+    order_by_description = (
+        "Field to sort by. Allowed fields: "
+        + ", ".join([field.name for field in spec.fields] + ["created_at", "updated_at"])
+    )
 
     lines = [
         "from typing import List, Literal",
@@ -434,8 +438,8 @@ def router_template(spec: ResourceSpec) -> str:
             [
                 "    page: int = Query(1, ge=1)",
                 "    page_size: int = Query(20, ge=1, le=100)",
-                "    order_by: str = Query(\"created_at\")",
-                "    order_dir: Literal[\"asc\", \"desc\"] = Query(\"desc\")",
+                f"    order_by: str = Query(\"created_at\", description={python_literal(order_by_description)})",
+                "    order_dir: Literal[\"asc\", \"desc\"] = Query(\"desc\", description=\"Sort direction (asc/desc)\")",
             ]
         )
         lines.append(",\n".join(params))

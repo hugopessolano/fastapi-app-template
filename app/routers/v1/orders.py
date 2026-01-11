@@ -22,8 +22,8 @@ async def get_items(
     auth: AuthContext = Depends(get_auth_context),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    order_by: str = Query("created_at"),
-    order_dir: Literal["asc", "desc"] = Query("desc")
+    order_by: str = Query("created_at", description='Field to sort by. Allowed fields: order_number, status, total, created_at, updated_at'),
+    order_dir: Literal["asc", "desc"] = Query("desc", description="Sort direction (asc/desc)")
 ):
     return list_orders(
         request=request,
