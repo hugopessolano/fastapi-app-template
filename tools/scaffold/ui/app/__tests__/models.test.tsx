@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, vi } from "vitest";
 
-import ScaffoldStudio from "../page";
+import ModelEditor from "../models/page";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
@@ -10,19 +10,16 @@ beforeEach(() => {
   }));
 });
 
-describe("ScaffoldStudio", () => {
-  it("renders the main heading", async () => {
-    render(<ScaffoldStudio />);
+describe("ModelEditor", () => {
+  it("renders the model editor heading", async () => {
+    render(<ModelEditor />);
     expect(
-      await screen.findByText(
-        "Administra endpoints y versiones con un flujo claro."
-      )
+      await screen.findByText("Define modelos y relaciones con control total.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Nuevo endpoint")).toBeInTheDocument();
-    expect(screen.getByText("Configuracion general")).toBeInTheDocument();
+    expect(screen.getByText("Volver a endpoints")).toBeInTheDocument();
   });
 
-  it("loads a spec without relations safely", async () => {
+  it("loads a spec and shows model fields", async () => {
     const spec = {
       version: "v1",
       name: "widget",
@@ -37,6 +34,7 @@ describe("ScaffoldStudio", () => {
       fields: [
         { name: "name", type: "String", nullable: false, unique: false },
       ],
+      relations: [],
       endpoints: {
         list: true,
         get: true,
@@ -65,12 +63,11 @@ describe("ScaffoldStudio", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ScaffoldStudio />);
+    render(<ModelEditor />);
 
     const editButton = await screen.findByText("Editar");
     fireEvent.click(editButton);
 
-    expect(await screen.findByLabelText("Editar modelos")).toBeInTheDocument();
-    expect(await screen.findByLabelText("Editar schemas")).toBeInTheDocument();
+    expect(await screen.findByText("Campos")).toBeInTheDocument();
   });
 });

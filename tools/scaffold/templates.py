@@ -1,4 +1,14 @@
-from tools.scaffold.spec import FieldSpec, RelationSpec, ResourceSpec, to_class_name
+from typing import Any
+
+from tools.scaffold.spec import (
+    CustomSchemaSpec,
+    FieldSpec,
+    RelationSpec,
+    ResourceSpec,
+    SchemaFieldSpec,
+    SchemaRelationSpec,
+    to_class_name,
+)
 
 
 TYPE_MAP = {
@@ -92,35 +102,72 @@ def model_template(spec: ResourceSpec) -> str:
 
 def schema_template(spec: ResourceSpec) -> str:
     base_name = spec.schema_base
-    schema_fields = build_schema_fields(spec)
-    needs_datetime = any(field.type == "DateTime" for field in schema_fields)
+    create_fields = [field for field in spec.schemas.create.fields if field.enabled]
+    update_fields = [field for field in spec.schemas.update.fields if field.enabled]
+    response_fields = [field for field in spec.schemas.response.fields if field.enabled]
+    response_relations = spec.schemas.response.relations
+
+    relation_fields = build_relation_schema_fields(spec, response_relations)
+    all_response_fields = response_fields + relation_fields
+
+    required_imports = gather_schema_imports(create_fields + update_fields + all_response_fields)
+    relation_imports = build_relation_imports(spec, response_relations)
     lines = [
-        "from pydantic import BaseModel",
-        "from typing import Optional",
+        "from __future__ import annotations",
+        "",
+        "from pydantic import BaseModel" + (", Field" if required_imports["field"] else ""),
         "from app.schemas.base_schema import BaseSchema",
     ]
-    if needs_datetime:
+    if required_imports["optional"]:
+        lines.append("from typing import Optional")
+    if required_imports["list"]:
+        lines.append("from typing import List")
+    if required_imports["datetime"]:
         lines.append("from datetime import datetime")
+    if required_imports["uuid"]:
+        lines.append("from uuid import UUID")
+    if required_imports["decimal"]:
+        lines.append("from decimal import Decimal")
+    if required_imports["email"]:
+        lines.append("from pydantic import EmailStr")
+    if relation_imports:
+        lines.extend(relation_imports)
     lines.extend(
         [
             "",
-            f"class Base{base_name}(BaseSchema):",
+            f"class Base{base_name}Core(BaseSchema):",
         ]
     )
-    for field in schema_fields:
-        lines.append(f"    {field.name}: {python_type(field.type)}")
+    for field in response_fields:
+        lines.append(f"    {render_schema_field(field)}")
+    if not response_fields:
+        lines.append("    pass")
+    lines.append("")
+    lines.append(f"class Base{base_name}(Base{base_name}Core):")
+    if relation_fields:
+        for field in relation_fields:
+            lines.append(f"    {render_schema_field(field)}")
+    else:
+        lines.append("    pass")
     lines.append("")
     lines.append(f"class {base_name}Create(BaseModel):")
-    for field in schema_fields:
-        lines.append(f"    {field.name}: {python_type(field.type)}")
+    for field in create_fields:
+        lines.append(f"    {render_schema_field(field)}")
+    if not create_fields:
+        lines.append("    pass")
     lines.append("")
     lines.append(f"class {base_name}Update(BaseModel):")
-    for field in schema_fields:
-        lines.append(f"    {field.name}: Optional[{python_type(field.type)}] = None")
+    for field in update_fields:
+        lines.append(f"    {render_schema_field(field)}")
+    if not update_fields:
+        lines.append("    pass")
     lines.append("")
     lines.append("    class Config:")
     lines.append("        orm_mode = True")
     lines.append("")
+    custom_blocks = build_custom_schema_blocks(spec.schemas.custom)
+    if custom_blocks:
+        lines.extend(custom_blocks)
     return "\n".join(lines)
 
 
@@ -433,8 +480,14 @@ def python_type(field_type: str) -> str:
         "Integer": "int",
         "Float": "float",
         "DateTime": "datetime",
+        "UUID": "UUID",
+        "EmailStr": "EmailStr",
+        "Decimal": "Decimal",
     }
-    return mapping.get(field_type, "str")
+    if field_type.startswith("List[") and field_type.endswith("]"):
+        inner = field_type[5:-1].strip()
+        return f"List[{python_type(inner)}]"
+    return mapping.get(field_type, field_type)
 
 
 def has_foreign_keys(spec: ResourceSpec) -> bool:
@@ -522,3 +575,172 @@ def build_schema_fields(spec: ResourceSpec) -> list[FieldSpec]:
         )
         existing.add(fk_name)
     return fields
+
+
+def build_relation_schema_fields(
+    spec: ResourceSpec,
+    relations: list[SchemaRelationSpec],
+) -> list[SchemaFieldSpec]:
+    relation_map = {relation.name: relation for relation in spec.relations}
+    fields: list[SchemaFieldSpec] = []
+    for relation in relations:
+        source = relation_map.get(relation.name)
+        if source is None:
+            continue
+        if relation.mode != "embedded":
+            continue
+        target_base = schema_target_base(source.target)
+        field_type = (
+            f"List[Base{target_base}Core]"
+            if source.type in {"has_many", "many_to_many"}
+            else f"Base{target_base}Core"
+        )
+        fields.append(
+            SchemaFieldSpec(
+                name=source.name,
+                type=field_type,
+                required=False,
+                default=None,
+                description=None,
+                example=None,
+                constraints={},
+                enabled=True,
+            )
+        )
+    return fields
+
+
+def build_relation_imports(
+    spec: ResourceSpec,
+    relations: list[SchemaRelationSpec],
+) -> list[str]:
+    relation_map = {relation.name: relation for relation in spec.relations}
+    imports = []
+    seen = set()
+    for relation in relations:
+        source = relation_map.get(relation.name)
+        if source is None:
+            continue
+        if relation.mode != "embedded":
+            continue
+        target_base = schema_target_base(source.target)
+        module = source.target
+        key = (module, target_base)
+        if key in seen:
+            continue
+        seen.add(key)
+        imports.append(
+            f"from app.schemas.{module}_schemas import Base{target_base}Core"
+        )
+    return imports
+
+
+def schema_target_base(target: str) -> str:
+    return to_class_name(target.rstrip("s"))
+
+
+def gather_schema_imports(fields: list[SchemaFieldSpec]) -> dict[str, bool]:
+    flags = {
+        "optional": False,
+        "list": False,
+        "datetime": False,
+        "uuid": False,
+        "decimal": False,
+        "email": False,
+        "field": False,
+    }
+    for field in fields:
+        field_type = python_type(field.type)
+        if "List[" in field_type:
+            flags["list"] = True
+        if "Optional[" in field_type:
+            flags["optional"] = True
+        if field_type == "datetime":
+            flags["datetime"] = True
+        if field_type == "UUID":
+            flags["uuid"] = True
+        if field_type == "Decimal":
+            flags["decimal"] = True
+        if field_type == "EmailStr":
+            flags["email"] = True
+        constraints = field_constraints(field)
+        if constraints or field.default is not None:
+            flags["field"] = True
+    if any(not field.required for field in fields):
+        flags["optional"] = True
+    return flags
+
+
+def field_constraints(field: SchemaFieldSpec) -> dict[str, Any]:
+    payload = {}
+    for key in (
+        "min_length",
+        "max_length",
+        "pattern",
+        "ge",
+        "le",
+        "gt",
+        "lt",
+        "min_items",
+        "max_items",
+    ):
+        value = field.constraints.get(key) if field.constraints else None
+        if value is not None:
+            payload[key] = value
+    if field.description:
+        payload["description"] = field.description
+    if field.example is not None:
+        payload["examples"] = [field.example]
+    return payload
+
+
+def render_schema_field(field: SchemaFieldSpec) -> str:
+    annotation = python_type(field.type)
+    is_required = field.required and field.default is None
+    if not is_required:
+        annotation = f"Optional[{annotation}]"
+    constraints = field_constraints(field)
+    needs_field = bool(constraints) or field.default is not None
+    if needs_field:
+        default_literal = "..." if is_required else python_literal(field.default)
+        args = [default_literal]
+        for key, value in constraints.items():
+            args.append(f"{key}={python_literal(value)}")
+        return f"{field.name}: {annotation} = Field({', '.join(args)})"
+    if is_required:
+        return f"{field.name}: {annotation}"
+    return f"{field.name}: {annotation} = None"
+
+
+def python_literal(value: Any) -> str:
+    if value is None:
+        return "None"
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return repr(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(python_literal(item) for item in value) + "]"
+    if isinstance(value, dict):
+        items = ", ".join(
+            f"{python_literal(key)}: {python_literal(val)}" for key, val in value.items()
+        )
+        return "{" + items + "}"
+    return repr(value)
+
+
+def build_custom_schema_blocks(custom: list[CustomSchemaSpec]) -> list[str]:
+    blocks = []
+    for schema in custom:
+        blocks.append("")
+        blocks.append(f"class {schema.name}(BaseModel):")
+        enabled_fields = [field for field in schema.fields if field.enabled]
+        for field in enabled_fields:
+            blocks.append(f"    {render_schema_field(field)}")
+        if not enabled_fields:
+            blocks.append("    pass")
+    if blocks:
+        blocks.append("")
+    return blocks

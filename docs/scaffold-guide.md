@@ -40,6 +40,50 @@ Each resource lives in `specs/<resource>.json`:
 }
 ```
 
+## 2.1) Schemas (optional)
+You can customize request/response schemas with the `schemas` section. If omitted, the scaffold keeps the default schema output.
+
+Key ideas:
+- `create`, `update`, `response`: per-variant fields and validation.
+- `relations` in `response`: choose `embedded`, `ids`, or `omit`.
+- `custom`: define additional schemas for special cases.
+
+Example:
+```
+"schemas": {
+  "create": {
+    "fields": [
+      { "name": "name", "type": "String", "required": true, "constraints": { "min_length": 2 } },
+      { "name": "sku", "type": "String", "required": true }
+    ]
+  },
+  "update": {
+    "fields": [
+      { "name": "name", "type": "String", "required": false }
+    ]
+  },
+  "response": {
+    "relations": [
+      { "name": "items", "mode": "embedded" },
+      { "name": "customer", "mode": "ids" }
+    ]
+  },
+  "custom": [
+    {
+      "name": "ProductSummary",
+      "fields": [
+        { "name": "id", "type": "String", "required": true },
+        { "name": "name", "type": "String", "required": true }
+      ]
+    }
+  ]
+}
+```
+
+Notes:
+- `constraints` supports: `min_length`, `max_length`, `pattern`, `ge`, `le`, `gt`, `lt`, `min_items`, `max_items`.
+- Embedding relations in request payloads requires custom logic in the endpoints.
+
 ## 3) Create vs Modify
 - `create`: creates new files and updates the router registry.
 - `modify`: overwrites existing files from the spec.

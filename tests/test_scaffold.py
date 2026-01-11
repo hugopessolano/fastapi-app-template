@@ -227,3 +227,103 @@ class TestScaffold(unittest.TestCase):
             schema_path = root / "app" / "schemas" / "sales_schemas.py"
             schema_content = schema_path.read_text(encoding="utf-8")
             self.assertIn("customer_id: str", schema_content)
+
+    def test_schema_variants_embed_relations(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "order",
+                "plural": "orders",
+                "table_name": "orders",
+                "tags": ["Orders"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "number", "type": "String", "nullable": False, "unique": True}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "relations": [
+                    {
+                        "name": "items",
+                        "type": "has_many",
+                        "target": "order_items",
+                        "back_populates": "order",
+                        "soft_delete_cascade": True,
+                    },
+                ],
+                "schemas": {
+                    "response": {
+                        "relations": [{"name": "items", "mode": "embedded"}],
+                    }
+                },
+            }
+            spec_path = root / "specs" / "orders.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            schema_path = root / "app" / "schemas" / "orders_schemas.py"
+            schema_content = schema_path.read_text(encoding="utf-8")
+            self.assertIn("class BaseOrderCore", schema_content)
+            self.assertIn("items: Optional[List[BaseOrderItemCore]] = None", schema_content)
+            self.assertIn("from app.schemas.order_items_schemas import BaseOrderItemCore", schema_content)
+
+    def test_schema_field_constraints_render(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec = {
+                "version": "v1",
+                "name": "widget",
+                "plural": "widgets",
+                "table_name": "widgets",
+                "tags": ["Widgets"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "name", "type": "String", "nullable": False, "unique": False}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "schemas": {
+                    "create": {
+                        "fields": [
+                            {
+                                "name": "name",
+                                "type": "String",
+                                "required": True,
+                                "constraints": {"min_length": 2, "max_length": 40},
+                            }
+                        ]
+                    }
+                },
+            }
+            spec_path = root / "specs" / "widgets.json"
+            write_file(spec_path, json.dumps(spec, indent=2))
+
+            create_resource(root, spec_path)
+
+            schema_path = root / "app" / "schemas" / "widgets_schemas.py"
+            schema_content = schema_path.read_text(encoding="utf-8")
+            self.assertIn("name: str = Field(..., min_length=2, max_length=40)", schema_content)
