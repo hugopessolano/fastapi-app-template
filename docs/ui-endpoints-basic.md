@@ -101,6 +101,21 @@ En el Model Editor agrega los campos:
 
 En la imagen se resalta el boton "Add field".
 
+Opciones de cada campo (que significan):
+- Tipo: define el tipo real de la columna en la base (String/Integer/Float/Boolean/DateTime).
+- Nullable: permite o no valores nulos.
+- Unique: agrega una restriccion unica en la tabla.
+- Remove: elimina el campo del modelo.
+
+Como elegir los tipos (ejemplos rapidos):
+- String: nombres, descripciones, codigos.
+- Integer: cantidades y contadores.
+- Float: precios o montos.
+- Boolean: flags (true/false).
+- DateTime: fechas y timestamps.
+
+![Campos en el Model Editor](images/ui-tutorial/basic-v2/ui-basic-13-models-fields.png)
+
 Cuando termines, pulsa "Guardar cambios" en el Model Editor.
 
 ![Guardar cambios (models)](images/ui-tutorial/basic-v2/ui-basic-11-models-save.png)
@@ -115,6 +130,24 @@ Abre el Schema Editor. Usa las pestanas CREATE/UPDATE/RESPONSE para ajustar:
 ![Schema variants](images/ui-tutorial/basic-v2/ui-basic-10-schemas-variants.png)
 
 En la imagen se resaltan las pestanas de variantes.
+
+Opciones de cada campo en schemas:
+- Tipo: valida el dato que llega (mismos tipos base).
+- Required: el campo debe estar presente.
+- Enabled: si esta apagado, el campo no se usa en esa variante.
+- Default: valor por defecto si no llega en el payload.
+- Description: aparece en Swagger.
+- Example: ejemplo mostrado en Swagger.
+
+![Campos en el Schema Editor](images/ui-tutorial/basic-v2/ui-basic-14-schemas-fields.png)
+
+Relaciones en schemas:
+- Sirven para definir como viajan las relaciones en la API.
+- Embedded: envia objetos completos.
+- IDs: envia solo identificadores (payload mas liviano).
+- Omit: no incluye la relacion en esa variante.
+
+![Relaciones en schemas](images/ui-tutorial/basic-v2/ui-basic-15-schemas-relations.png)
 
 Cuando termines, pulsa "Guardar cambios" en el Schema Editor.
 
