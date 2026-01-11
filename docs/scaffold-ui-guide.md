@@ -36,6 +36,8 @@ NEXT_PUBLIC_SCAFFOLD_API_URL=http://127.0.0.1:8001
 - `GET /specs`
 - `GET /specs/read?path=specs/example.json`
 - `POST /specs/write`
+- `GET /settings`
+- `POST /settings`
 - `POST /scaffold/create`
 - `POST /scaffold/modify`
 - `POST /scaffold/sync-to-code`

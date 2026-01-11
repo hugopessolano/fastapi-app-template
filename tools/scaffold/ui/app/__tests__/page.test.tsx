@@ -19,6 +19,7 @@ describe("ScaffoldStudio", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Nuevo endpoint")).toBeInTheDocument();
+    expect(screen.getByText("Configuracion general")).toBeInTheDocument();
   });
 
   it("loads a spec without relations safely", async () => {

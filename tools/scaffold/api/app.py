@@ -7,6 +7,28 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+SETTINGS_KEYS = {
+    "APP_NAME",
+    "ENVIRONMENT",
+    "DATABASE_URL",
+    "EXTERNAL_DB_URL",
+    "AUTH_MODE",
+    "TENANTS_ENABLED",
+    "AUTO_BUILD_PERMISSIONS",
+    "ENABLE_SEED_DATA",
+    "SEED_CHECK_EXISTING_USERS",
+    "RATE_LIMIT_DEFAULT_REQUESTS",
+    "RATE_LIMIT_DEFAULT_WINDOW_SECONDS",
+    "RETRY_MAX_ATTEMPTS",
+    "RETRY_BASE_DELAY_SECONDS",
+    "RETRY_MAX_DELAY_SECONDS",
+    "RETRY_JITTER_SECONDS",
+    "CACHE_ENABLED",
+    "CACHE_DEFAULT_TTL_SECONDS",
+    "LOGGING_STDOUT_LEVEL",
+    "LOGGING_DB_LEVEL",
+}
+
 from tools.scaffold.scaffold import (
     create_resource,
     modify_resource,
@@ -26,6 +48,10 @@ class SpecWriteRequest(BaseModel):
 class SpecPathRequest(BaseModel):
     spec_path: str
     delete_spec: bool = False
+
+
+class SettingsRequest(BaseModel):
+    settings: dict[str, Any]
 
 
 def create_api_app(root: Path) -> FastAPI:
@@ -108,6 +134,27 @@ def create_api_app(root: Path) -> FastAPI:
             ),
         )
 
+    @app.get("/settings")
+    def read_settings() -> dict[str, dict[str, str]]:
+        env_path = root / ".env"
+        settings = _load_env_settings(env_path)
+        filtered = {key: value for key, value in settings.items() if key in SETTINGS_KEYS}
+        return {"settings": filtered}
+
+    @app.post("/settings")
+    def write_settings(payload: SettingsRequest) -> dict[str, dict[str, str]]:
+        updates = payload.settings
+        unknown = [key for key in updates if key not in SETTINGS_KEYS]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown settings keys: {', '.join(sorted(unknown))}",
+            )
+        env_path = root / ".env"
+        normalized = {key: _normalize_setting_value(value) for key, value in updates.items()}
+        _write_env_settings(env_path, normalized)
+        return {"settings": normalized}
+
     return app
 
 
@@ -139,3 +186,47 @@ def relative_to_root(root: Path, path: Path) -> str:
     root_str = os.path.normcase(str(root.resolve()))
     path_str = os.path.normcase(str(path.resolve()))
     return os.path.relpath(path_str, root_str)
+
+
+def _normalize_setting_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _load_env_settings(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    settings: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        settings[key.strip()] = value.strip()
+    return settings
+
+
+def _write_env_settings(path: Path, updates: dict[str, str]) -> None:
+    lines = []
+    if path.exists():
+        lines = path.read_text(encoding="utf-8").splitlines()
+
+    updated_keys = set()
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in line:
+            continue
+        key = line.split("=", 1)[0].strip()
+        if key in updates:
+            lines[idx] = f"{key}={updates[key]}"
+            updated_keys.add(key)
+
+    for key, value in updates.items():
+        if key not in updated_keys:
+            lines.append(f"{key}={value}")
+
+    content = "\n".join(lines)
+    if content and not content.endswith("\n"):
+        content += "\n"
+    path.write_text(content, encoding="utf-8")
