@@ -17,6 +17,7 @@ npm install
 npm run dev
 ```
 Default URL: `http://127.0.0.1:3000`
+General settings screen: `http://127.0.0.1:3000/settings`
 
 ## 2.1) Docker Compose
 From the repo root:
