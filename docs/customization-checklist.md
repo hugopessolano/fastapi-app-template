@@ -15,7 +15,7 @@ Use this list when adapting the template to a new project or domain.
 - [ ] Set rate limit and retry defaults in `.env` (or keep the provided defaults).
 - [ ] Decide if cache should be enabled and set `CACHE_DEFAULT_TTL_SECONDS`.
 - [ ] If using external services, add new settings fields to `app/config.py`.
-- [ ] Configure `EXTERNAL_DB_URL` (if you need a secondary DB) and use `app/database/external.py` to access it from routers/services.
+- [ ] Configure `EXTERNAL_DB_<NAME>_URL` (if you need external DBs) and use `app/database/external_registry.py` in routers/services.
 
 ## 3. Database & Migrations
 - [ ] Remove placeholder data (Base Tenant, admin user) if not needed.
