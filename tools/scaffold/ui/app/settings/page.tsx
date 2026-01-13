@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +12,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { FieldBlock } from "@/components/scaffold-ui";
+import { fetchJson } from "@/lib/scaffold-api";
+import { useScaffoldStatus } from "@/components/scaffold-status";
 
 type SettingValue = string | number | boolean;
 
@@ -25,14 +27,6 @@ type SettingField = {
   options?: string[];
   placeholder?: string;
 };
-
-type StatusState = {
-  tone: "idle" | "success" | "error";
-  message: string;
-};
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_SCAFFOLD_API_URL ?? "http://127.0.0.1:8001";
 
 const settingsDefaults: Record<string, SettingValue> = {
   APP_NAME: "FastAPI Template",
@@ -195,19 +189,6 @@ const settingsFields: SettingField[] = [
   },
 ];
 
-async function fetchJson(path: string, options?: RequestInit) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.detail ?? "Request failed");
-  }
-  return data;
-}
-
 const toggleClass =
   "h-4 w-4 rounded border border-input bg-background text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40";
 
@@ -228,7 +209,9 @@ function Toggle({
   );
 }
 
-const normalizeSettings = (raw: Record<string, string>): Record<string, SettingValue> => {
+const normalizeSettings = (
+  raw: Record<string, string>
+): Record<string, SettingValue> => {
   const next = { ...settingsDefaults };
   settingsFields.forEach((field) => {
     const rawValue = raw[field.key];
@@ -266,13 +249,10 @@ const serializeSettings = (settings: Record<string, SettingValue>) => {
 };
 
 export default function SettingsPage() {
+  const { setStatus } = useScaffoldStatus();
   const [generalSettings, setGeneralSettings] = useState<Record<string, SettingValue>>(
     settingsDefaults
   );
-  const [status, setStatus] = useState<StatusState>({
-    tone: "idle",
-    message: "Ready.",
-  });
   const [isBusy, setIsBusy] = useState(false);
 
   const settingsGroups = useMemo(() => {
@@ -298,6 +278,7 @@ export default function SettingsPage() {
       const data = await fetchJson("/settings");
       const normalized = normalizeSettings(data.settings ?? {});
       setGeneralSettings(normalized);
+      setStatus({ tone: "success", message: "Settings loaded." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
     }
@@ -390,121 +371,56 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-10">
-      <div className="pointer-events-none absolute left-10 top-16 hidden h-24 w-24 rounded-full bg-accent/30 blur-2xl sm:block" />
-      <div className="pointer-events-none absolute right-16 top-24 hidden h-32 w-32 rounded-full bg-primary/25 blur-3xl sm:block" />
-      <div className="pointer-events-none absolute bottom-16 left-24 hidden h-28 w-28 rounded-full bg-secondary/40 blur-3xl sm:block" />
-
-      <section className="mx-auto flex max-w-6xl flex-col gap-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Badge variant="accent">Configuracion general</Badge>
-              <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Defaults
-              </span>
-            </div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Configura los defaults globales de la API.
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground">
-              Estos valores afectan el comportamiento global del template. Ajustalos
-              antes de generar endpoints mas finos.
-            </p>
-          </div>
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <Button asChild variant="secondary">
-              <Link href="/">Volver a endpoints</Link>
-            </Button>
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle>API Status</CardTitle>
-                <CardDescription>
-                  Connected to <span className="font-medium">{API_BASE}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={cn(
-                    "rounded-2xl border px-4 py-3 text-sm",
-                    status.tone === "success" && "border-primary/40 bg-primary/10",
-                    status.tone === "error" && "border-destructive/40 bg-destructive/10",
-                    status.tone === "idle" && "border-border/60 bg-muted/40"
-                  )}
-                >
-                  {status.message}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <Card className="animate-fade-up">
-          <CardHeader>
-            <CardTitle>Defaults globales</CardTitle>
-            <CardDescription>
-              Cada grupo explica el parametro con un tooltip.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {settingsGroups.map((group) => (
-              <div key={group.group} className="space-y-3">
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {group.group}
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {group.fields.map((field) => renderSettingField(field))}
-                </div>
-              </div>
-            ))}
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={saveSettings} disabled={isBusy}>
-                Guardar configuracion
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={loadSettings}
-                disabled={isBusy}
-              >
-                Refresh settings
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-    </main>
-  );
-}
-
-function FieldBlock({
-  label,
-  info,
-  children,
-}: {
-  label: string;
-  info?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-        <label>{label}</label>
-        {info ? <InfoTip text={info} /> : null}
+    <section className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <Button asChild variant="ghost" size="sm" className="gap-2">
+          <Link href="/endpoints">
+            <ArrowLeft className="h-4 w-4" />
+            Volver a endpoints
+          </Link>
+        </Button>
       </div>
-      {children}
-    </div>
-  );
-}
 
-function InfoTip({ text }: { text: string }) {
-  return (
-    <span className="group relative inline-flex">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border/60 text-[10px] font-semibold text-muted-foreground">
-        i
-      </span>
-      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-56 -translate-x-1/2 rounded-2xl border border-border/70 bg-background/95 px-3 py-2 text-xs normal-case text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
-        {text}
-      </span>
-    </span>
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Configuraciones
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Ajusta defaults globales del template desde un panel unificado.
+        </p>
+      </div>
+      <Card className="animate-fade-up">
+        <CardHeader>
+          <CardTitle>Defaults globales</CardTitle>
+          <CardDescription>
+            Cada grupo explica el parametro con un tooltip.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {settingsGroups.map((group) => (
+            <div key={group.group} className="space-y-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                {group.group}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {group.fields.map((field) => renderSettingField(field))}
+              </div>
+            </div>
+          ))}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={saveSettings} disabled={isBusy}>
+              Guardar configuracion
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={loadSettings}
+              disabled={isBusy}
+            >
+              Refresh settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }

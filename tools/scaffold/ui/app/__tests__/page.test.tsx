@@ -1,7 +1,16 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, vi } from "vitest";
 
-import ScaffoldStudio from "../page";
+import EndpointsPage from "../endpoints/page";
+import { ScaffoldStatusProvider } from "../../components/scaffold-status";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+const renderWithStatus = (ui: ReactElement) =>
+  render(<ScaffoldStatusProvider>{ui}</ScaffoldStatusProvider>);
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
@@ -10,19 +19,15 @@ beforeEach(() => {
   }));
 });
 
-describe("ScaffoldStudio", () => {
+describe("EndpointsPage", () => {
   it("renders the main heading", async () => {
-    render(<ScaffoldStudio />);
-    expect(
-      await screen.findByText(
-        "Administra endpoints y versiones con un flujo claro."
-      )
-    ).toBeInTheDocument();
+    renderWithStatus(<EndpointsPage />);
+    expect(await screen.findByText("Endpoints")).toBeInTheDocument();
     expect(screen.getByText("Nuevo endpoint")).toBeInTheDocument();
-    expect(screen.getByText("Configuracion general")).toBeInTheDocument();
+    expect(screen.getByText("Listado")).toBeInTheDocument();
   });
 
-  it("loads a spec without relations safely", async () => {
+  it("loads specs and shows edit actions", async () => {
     const spec = {
       version: "v1",
       name: "widget",
@@ -34,9 +39,7 @@ describe("ScaffoldStudio", () => {
       soft_delete: true,
       pagination: true,
       ordering: true,
-      fields: [
-        { name: "name", type: "String", nullable: false, unique: false },
-      ],
+      fields: [{ name: "name", type: "String", nullable: false, unique: false }],
       endpoints: {
         list: true,
         get: true,
@@ -65,12 +68,9 @@ describe("ScaffoldStudio", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ScaffoldStudio />);
+    renderWithStatus(<EndpointsPage />);
 
-    const editButton = await screen.findByText("Editar");
-    fireEvent.click(editButton);
-
-    expect(await screen.findByLabelText("Editar modelos")).toBeInTheDocument();
-    expect(await screen.findByLabelText("Editar schemas")).toBeInTheDocument();
+    expect(await screen.findByText("Editar")).toBeInTheDocument();
+    expect(screen.getByText("Eliminar")).toBeInTheDocument();
   });
 });

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,6 +21,8 @@ import {
   Section,
   Toggle,
 } from "@/components/scaffold-ui";
+import { fetchJson } from "@/lib/scaffold-api";
+import { useScaffoldStatus } from "@/components/scaffold-status";
 
 type SpecSummary = {
   path: string;
@@ -77,11 +80,6 @@ type SpecForm = {
   };
 };
 
-type StatusState = {
-  tone: "idle" | "success" | "error";
-  message: string;
-};
-
 type SchemaConstraintForm = {
   min_length: string;
   max_length: string;
@@ -127,9 +125,6 @@ type SchemaSpecForm = {
   response: SchemaVariantForm;
   custom: CustomSchemaForm[];
 };
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_SCAFFOLD_API_URL ?? "http://127.0.0.1:8001";
 
 const emptySpec = (): SpecForm => ({
   version: "v1",
@@ -186,19 +181,6 @@ const relationModeOptions = [
   { value: "ids", label: "IDs" },
   { value: "omit", label: "Omit" },
 ];
-
-async function fetchJson(path: string, options?: RequestInit) {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    cache: "no-store",
-    ...options,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.detail ?? "Request failed");
-  }
-  return data;
-}
 
 const normalizeSpec = (raw: Partial<SpecForm>): SpecForm => {
   const base = emptySpec();
@@ -497,16 +479,14 @@ const serializeSchemas = (schemas: SchemaSpecForm) => ({
 });
 
 export default function SchemaEditor() {
+  const searchParams = useSearchParams();
+  const { setStatus } = useScaffoldStatus();
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
   const [schemas, setSchemas] = useState<SchemaSpecForm>(
     normalizeSchemas(emptySpec())
   );
-  const [status, setStatus] = useState<StatusState>({
-    tone: "idle",
-    message: "Ready.",
-  });
   const [isBusy, setIsBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<
     "create" | "update" | "response" | "custom"
@@ -544,12 +524,11 @@ export default function SchemaEditor() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const path = params.get("path");
+    const path = searchParams.get("path");
     if (path) {
       selectSpec(path);
     }
-  }, []);
+  }, [searchParams]);
 
   const loadSpecs = async () => {
     try {
@@ -990,57 +969,26 @@ export default function SchemaEditor() {
   const relationVariant =
     activeTab === "custom" ? [] : schemas[activeTab].relations;
 
+
   return (
-    <main className="relative min-h-screen overflow-hidden px-6 py-10 sm:px-10">
-      <div className="pointer-events-none absolute left-10 top-16 hidden h-24 w-24 rounded-full bg-accent/30 blur-2xl sm:block" />
-      <div className="pointer-events-none absolute right-16 top-24 hidden h-32 w-32 rounded-full bg-primary/25 blur-3xl sm:block" />
-      <div className="pointer-events-none absolute bottom-16 left-24 hidden h-28 w-28 rounded-full bg-secondary/40 blur-3xl sm:block" />
+    <section className="mx-auto flex max-w-6xl flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <Button asChild variant="ghost" size="sm" className="gap-2">
+          <Link href="/endpoints">
+            <ArrowLeft className="h-4 w-4" />
+            Volver a endpoints
+          </Link>
+        </Button>
+      </div>
 
-      <section className="mx-auto flex max-w-6xl flex-col gap-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <Badge variant="accent">Schema Editor</Badge>
-              <span className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Validation ready
-              </span>
-            </div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Define schemas con foco en validacion y UX.
-            </h1>
-            <p className="max-w-2xl text-base text-muted-foreground">
-              Ajusta payloads, respuestas y validaciones avanzadas con un flujo
-              guiado.
-            </p>
-          </div>
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <Button asChild variant="secondary">
-              <Link href="/">Volver a endpoints</Link>
-            </Button>
-            <Card className="animate-fade-in">
-              <CardHeader>
-                <CardTitle>API Status</CardTitle>
-                <CardDescription>
-                  Connected to <span className="font-medium">{API_BASE}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={cn(
-                    "rounded-2xl border px-4 py-3 text-sm",
-                    status.tone === "success" && "border-primary/40 bg-primary/10",
-                    status.tone === "error" &&
-                      "border-destructive/40 bg-destructive/10",
-                    status.tone === "idle" && "border-border/60 bg-muted/40"
-                  )}
-                >
-                  {status.message}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Schemas
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Define validaciones, variantes y relaciones de respuesta.
+        </p>
+      </div>
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
           <Card className="animate-fade-up">
             <CardHeader>
@@ -1346,7 +1294,7 @@ export default function SchemaEditor() {
             </CardContent>
           </Card>
         </div>
-      </section>
-    </main>
+
+    </section>
   );
 }

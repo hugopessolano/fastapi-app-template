@@ -1,7 +1,16 @@
+import type { ReactElement } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, vi } from "vitest";
 
 import ModelEditor from "../models/page";
+import { ScaffoldStatusProvider } from "../../components/scaffold-status";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+
+const renderWithStatus = (ui: ReactElement) =>
+  render(<ScaffoldStatusProvider>{ui}</ScaffoldStatusProvider>);
 
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
@@ -12,10 +21,8 @@ beforeEach(() => {
 
 describe("ModelEditor", () => {
   it("renders the model editor heading", async () => {
-    render(<ModelEditor />);
-    expect(
-      await screen.findByText("Define modelos y relaciones con control total.")
-    ).toBeInTheDocument();
+    renderWithStatus(<ModelEditor />);
+    expect(await screen.findByText("Modelos")).toBeInTheDocument();
     expect(screen.getByText("Volver a endpoints")).toBeInTheDocument();
   });
 
@@ -63,7 +70,7 @@ describe("ModelEditor", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ModelEditor />);
+    renderWithStatus(<ModelEditor />);
 
     const editButton = await screen.findByText("Editar");
     fireEvent.click(editButton);

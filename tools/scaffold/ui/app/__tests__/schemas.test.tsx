@@ -1,7 +1,16 @@
+import type { ReactElement } from "react";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, vi } from "vitest";
 
 import SchemaEditor from "../schemas/page";
+import { ScaffoldStatusProvider } from "../../components/scaffold-status";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+
+const renderWithStatus = (ui: ReactElement) =>
+  render(<ScaffoldStatusProvider>{ui}</ScaffoldStatusProvider>);
 
 beforeEach(() => {
   window.history.pushState({}, "", "/schemas?path=specs/widgets.json");
@@ -56,7 +65,7 @@ describe("SchemaEditor", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<SchemaEditor />);
+    renderWithStatus(<SchemaEditor />);
 
     expect(await screen.findByText("Variantes")).toBeInTheDocument();
     expect(screen.getByText("create")).toBeInTheDocument();
