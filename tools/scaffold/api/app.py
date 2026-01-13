@@ -1,11 +1,16 @@
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
+
+from app.database.external_registry import ExternalConnectionError, parse_permissions
 
 SETTINGS_KEYS = {
     "APP_NAME",
@@ -52,6 +57,29 @@ class SpecPathRequest(BaseModel):
 
 class SettingsRequest(BaseModel):
     settings: dict[str, Any]
+
+
+class ExternalDbRequest(BaseModel):
+    name: str
+    url: str
+    permissions: list[str] | str | None = None
+
+
+class ExternalDbDeleteRequest(BaseModel):
+    name: str
+
+
+class ExternalDbTestRequest(BaseModel):
+    url: str
+
+
+EXTERNAL_DB_PREFIX = "EXTERNAL_DB_"
+EXTERNAL_DB_URL_SUFFIX = "_URL"
+EXTERNAL_DB_PERMISSIONS_SUFFIX = "_PERMISSIONS"
+LEGACY_EXTERNAL_URL_KEY = "EXTERNAL_DB_URL"
+LEGACY_EXTERNAL_PERMISSIONS_KEY = "EXTERNAL_DB_PERMISSIONS"
+EXTERNAL_ALLOWED_BACKENDS = {"sqlite", "postgresql", "mysql", "mariadb"}
+EXTERNAL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def create_api_app(root: Path) -> FastAPI:
@@ -155,6 +183,43 @@ def create_api_app(root: Path) -> FastAPI:
         _write_env_settings(env_path, normalized)
         return {"settings": normalized}
 
+    @app.get("/external-dbs")
+    def read_external_dbs() -> dict[str, list[dict[str, Any]]]:
+        env_path = root / ".env"
+        settings = _load_env_settings(env_path)
+        return {"connections": _parse_external_connections(settings)}
+
+    @app.post("/external-dbs")
+    def upsert_external_db(payload: ExternalDbRequest) -> dict[str, list[dict[str, Any]]]:
+        env_path = root / ".env"
+        settings = _load_env_settings(env_path)
+        name = _normalize_external_name(payload.name)
+        url = _validate_external_url(payload.url)
+        permission_value, _ = _normalize_external_permissions(payload.permissions)
+        url_key, perm_key = _resolve_external_keys(name, settings)
+        _write_env_settings(env_path, {url_key: url, perm_key: permission_value})
+        return {"connections": _parse_external_connections(_load_env_settings(env_path))}
+
+    @app.post("/external-dbs/delete")
+    def delete_external_db(payload: ExternalDbDeleteRequest) -> dict[str, list[dict[str, Any]]]:
+        env_path = root / ".env"
+        settings = _load_env_settings(env_path)
+        name = _normalize_external_name(payload.name)
+        url_key, perm_key = _resolve_external_keys(name, settings)
+        _remove_env_keys(env_path, {url_key, perm_key})
+        return {"connections": _parse_external_connections(_load_env_settings(env_path))}
+
+    @app.post("/external-dbs/test")
+    def test_external_db(payload: ExternalDbTestRequest) -> dict[str, str]:
+        url = _validate_external_url(payload.url)
+        try:
+            engine = create_engine(url, **_external_engine_kwargs(url))
+            with engine.connect():
+                pass
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"status": "ok"}
+
     return app
 
 
@@ -230,3 +295,132 @@ def _write_env_settings(path: Path, updates: dict[str, str]) -> None:
     if content and not content.endswith("\n"):
         content += "\n"
     path.write_text(content, encoding="utf-8")
+
+
+def _remove_env_keys(path: Path, keys: set[str]) -> None:
+    if not path.exists():
+        return
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in line:
+            kept.append(line)
+            continue
+        key = line.split("=", 1)[0].strip()
+        if key in keys:
+            continue
+        kept.append(line)
+    content = "\n".join(kept)
+    if content and not content.endswith("\n"):
+        content += "\n"
+    path.write_text(content, encoding="utf-8")
+
+
+def _normalize_external_name(name: str) -> str:
+    cleaned = name.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="External DB name is required.")
+    if not EXTERNAL_NAME_PATTERN.fullmatch(cleaned):
+        raise HTTPException(
+            status_code=400,
+            detail="External DB name must use letters, numbers, or underscores.",
+        )
+    return cleaned.lower()
+
+
+def _validate_external_url(url: str) -> str:
+    cleaned = url.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="External DB URL is required.")
+    try:
+        backend = make_url(cleaned).get_backend_name()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid database URL.") from exc
+    if backend not in EXTERNAL_ALLOWED_BACKENDS:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported database engine. Use sqlite, postgresql, or mysql/mariadb.",
+        )
+    return cleaned
+
+
+def _normalize_external_permissions(
+    permissions: list[str] | str | None,
+) -> tuple[str, list[str]]:
+    if permissions is None:
+        raw = ""
+    elif isinstance(permissions, list):
+        raw = ",".join(permissions)
+    else:
+        raw = str(permissions)
+    try:
+        parsed = parse_permissions(raw)
+    except ExternalConnectionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return raw, sorted(parsed)
+
+
+def _resolve_external_keys(name: str, settings: dict[str, str]) -> tuple[str, str]:
+    upper = name.upper()
+    named_url_key = f"{EXTERNAL_DB_PREFIX}{upper}{EXTERNAL_DB_URL_SUFFIX}"
+    named_perm_key = f"{EXTERNAL_DB_PREFIX}{upper}{EXTERNAL_DB_PERMISSIONS_SUFFIX}"
+    if name == "default" and LEGACY_EXTERNAL_URL_KEY in settings and named_url_key not in settings:
+        return LEGACY_EXTERNAL_URL_KEY, LEGACY_EXTERNAL_PERMISSIONS_KEY
+    return named_url_key, named_perm_key
+
+
+def _safe_backend(url: str) -> str:
+    try:
+        return make_url(url).get_backend_name()
+    except Exception:
+        return "unknown"
+
+
+def _external_engine_kwargs(url: str) -> dict[str, Any]:
+    try:
+        backend = make_url(url).get_backend_name()
+    except Exception:
+        return {}
+    if backend == "sqlite":
+        return {"connect_args": {"check_same_thread": False, "timeout": 30}}
+    return {}
+
+
+def _parse_external_connections(settings: dict[str, str]) -> list[dict[str, Any]]:
+    connections: dict[str, dict[str, Any]] = {}
+    for key, value in settings.items():
+        if key == LEGACY_EXTERNAL_URL_KEY:
+            continue
+        if not key.startswith(EXTERNAL_DB_PREFIX) or not key.endswith(EXTERNAL_DB_URL_SUFFIX):
+            continue
+        name = key[len(EXTERNAL_DB_PREFIX) : -len(EXTERNAL_DB_URL_SUFFIX)].strip().lower()
+        if not name:
+            continue
+        url = value.strip()
+        if not url:
+            continue
+        perm_key = f"{EXTERNAL_DB_PREFIX}{name.upper()}{EXTERNAL_DB_PERMISSIONS_SUFFIX}"
+        _, permissions = _normalize_external_permissions(settings.get(perm_key, ""))
+        connections[name] = {
+            "name": name,
+            "url": url,
+            "permissions": permissions,
+            "backend": _safe_backend(url),
+            "source": "named",
+        }
+
+    legacy_url = settings.get(LEGACY_EXTERNAL_URL_KEY, "").strip()
+    if legacy_url and "default" not in connections:
+        _, permissions = _normalize_external_permissions(
+            settings.get(LEGACY_EXTERNAL_PERMISSIONS_KEY, "")
+        )
+        connections["default"] = {
+            "name": "default",
+            "url": legacy_url,
+            "permissions": permissions,
+            "backend": _safe_backend(legacy_url),
+            "source": "legacy",
+        }
+
+    return [connections[name] for name in sorted(connections)]

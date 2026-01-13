@@ -4,9 +4,10 @@ Use this guide to connect the template to one or more external databases (legacy
 
 ## 1. Requirements
 - The external database must be reachable (SQLite, MariaDB, Postgres, etc.).
+- Install the driver for the engine you use (`pymysql` for MariaDB/MySQL, `psycopg2-binary` for Postgres).
 - Know the SQLAlchemy connection string. Examples:
   - SQLite: `sqlite:///./app/external.db`
-  - MySQL/MariaDB (`mysqlclient`): `mysql+mysqldb://user:pass@host/dbname`
+  - MySQL/MariaDB (`pymysql`): `mysql+pymysql://user:pass@host/dbname`
   - Postgres: `postgresql+psycopg2://user:pass@host/dbname`
 
 ## 2. Configure `.env`
