@@ -3,16 +3,33 @@
   "name": "customer",
   "plural": "customers",
   "table_name": "customers",
-  "tags": ["Customers"],
+  "tags": [
+    "Customers"
+  ],
   "auth_required": true,
   "tenant_scoped": false,
   "soft_delete": true,
   "pagination": true,
   "ordering": true,
   "fields": [
-    {"name": "name", "type": "String", "nullable": false, "unique": false},
-    {"name": "email", "type": "String", "nullable": false, "unique": true},
-    {"name": "phone", "type": "String", "nullable": true, "unique": false}
+    {
+      "name": "name",
+      "type": "String",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "name": "email",
+      "type": "String",
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "phone",
+      "type": "String",
+      "nullable": true,
+      "unique": false
+    }
   ],
   "relations": [
     {
@@ -27,6 +44,17 @@
       "soft_delete_cascade": false
     }
   ],
+  "external_dbs": [
+    {
+      "name": "testing",
+      "permissions": [
+        "create",
+        "delete",
+        "read",
+        "update"
+      ]
+    }
+  ],
   "endpoints": {
     "list": true,
     "get": true,
@@ -34,5 +62,7 @@
     "update": true,
     "delete": true
   },
-  "tests": {"enabled": true}
+  "tests": {
+    "enabled": true
+  }
 }

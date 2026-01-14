@@ -9,6 +9,8 @@ from app.database.models import Customers
 from app.database.soft_delete import soft_delete_by_id
 from app.routers.utils import calculate_next_and_last_pages, order_by_parameter, filter_by_tenant
 from app.schemas.customers_schemas import CustomerCreate, CustomerUpdate
+from contextlib import contextmanager
+from app.database.external_registry import get_external_connection, require_external_permissions
 
 if TYPE_CHECKING:
     from app.auth.context import AuthContext
@@ -22,6 +24,20 @@ def _get_logger():
 
         _router_logger = child_logger.bind(router="customers")
     return _router_logger
+
+@contextmanager
+def external_session(name: str, permissions: list[str] | None = None):
+    if permissions:
+        require_external_permissions(name, permissions)
+    connection = get_external_connection(name)
+    db = connection.session_factory()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_testing_db():
+    return external_session("testing", ['create', 'delete', 'read', 'update'])
 
 SORTABLE_FIELDS_CUSTOMERS = {
     "name": Customers.name,

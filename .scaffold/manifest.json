@@ -13,14 +13,14 @@
       }
     },
     "customers": {
-      "spec_path": "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\specs\\examples\\customers.json",
-      "spec_hash": "733bb9ad514f7cd3ec72519a7b1c8f7a2f0b9cecc4323b46ccc7f07229cbe9ef",
+      "spec_path": "/code/specs/examples/customers.json",
+      "spec_hash": "9cc55fde386dfef7737e241655cddf36126dc200863e76de5a51ea1325b325f0",
       "files": {
-        "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\app\\database\\models\\customers_models.py": "c90bdbfdf35eb4719731f4127b23fb000e6ae7526c2aa3d48070617da72e21ae",
-        "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\app\\schemas\\customers_schemas.py": "3f82a8712f88e304a2f226d6f4d3d206e2bd688704134367eac2ac4b9209cda3",
-        "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\app\\endpoints_logic\\v1\\customers.py": "31cc4aaa47f06cceb0a50a085300c45fb184a51a6dd4358c6041f58504072287",
-        "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\app\\routers\\v1\\customers.py": "51a15b3f71df32ae80684301fa91ba43cdc71df19215724d06382c0b576a4d64",
-        "D:\\Hugo - Trabajo\\repos\\fastapi-app-template\\tests\\test_customers_modules.py": "d339a8487c452de83ab1c268972f5296cc34ce9ed0d21c6074345ac81451811e"
+        "/code/app/database/models/customers_models.py": "c90bdbfdf35eb4719731f4127b23fb000e6ae7526c2aa3d48070617da72e21ae",
+        "/code/app/schemas/customers_schemas.py": "3f82a8712f88e304a2f226d6f4d3d206e2bd688704134367eac2ac4b9209cda3",
+        "/code/app/endpoints_logic/v1/customers.py": "ac771b2db741b27d4ca8a90564dd1c4ef9f2663ed39c30582bd785ad8b06c926",
+        "/code/app/routers/v1/customers.py": "51a15b3f71df32ae80684301fa91ba43cdc71df19215724d06382c0b576a4d64",
+        "/code/tests/test_customers_modules.py": "d339a8487c452de83ab1c268972f5296cc34ce9ed0d21c6074345ac81451811e"
       }
     },
     "orders": {

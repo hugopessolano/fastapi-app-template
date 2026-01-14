@@ -43,6 +43,7 @@ export type SpecForm = {
   ordering: boolean;
   fields: FieldForm[];
   relations: RelationForm[];
+  external_dbs: ExternalDbSpec[];
   endpoints: {
     list: boolean;
     get: boolean;
@@ -53,6 +54,11 @@ export type SpecForm = {
   tests: {
     enabled: boolean;
   };
+};
+
+export type ExternalDbSpec = {
+  name: string;
+  permissions: string[];
 };
 
 export type StatusTone = "idle" | "success" | "error";
@@ -75,6 +81,7 @@ export const emptySpec = (): SpecForm => ({
   ordering: true,
   fields: [{ name: "name", type: "String", nullable: false, unique: false }],
   relations: [],
+  external_dbs: [],
   endpoints: {
     list: true,
     get: true,
@@ -98,6 +105,7 @@ export const normalizeSpec = (raw: Partial<SpecForm>): SpecForm => {
         ? raw.fields
         : base.fields,
     relations: Array.isArray(raw.relations) ? raw.relations : [],
+    external_dbs: Array.isArray(raw.external_dbs) ? raw.external_dbs : [],
     endpoints,
     tests,
   };

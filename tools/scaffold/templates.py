@@ -226,6 +226,13 @@ def logic_template(spec: ResourceSpec) -> str:
         lines.append("from app.tenants.context import TenantContext")
     if nested_create_relations or nested_update_relations:
         lines.append("from app.endpoints_logic.nested import NestedRelationConfig, apply_nested_relations")
+    if spec.external_dbs:
+        lines.extend(
+            [
+                "from contextlib import contextmanager",
+                "from app.database.external_registry import get_external_connection, require_external_permissions",
+            ]
+        )
 
     lines.extend(
         [
@@ -245,6 +252,42 @@ def logic_template(spec: ResourceSpec) -> str:
             "",
         ]
     )
+
+    if spec.external_dbs:
+        lines.extend(
+            [
+                "@contextmanager",
+                "def external_session(name: str, permissions: list[str] | None = None):",
+                "    if permissions:",
+                "        require_external_permissions(name, permissions)",
+                "    connection = get_external_connection(name)",
+                "    db = connection.session_factory()",
+                "    try:",
+                "        yield db",
+                "    finally:",
+                "        db.close()",
+                "",
+            ]
+        )
+        for external_db in spec.external_dbs:
+            function_name = f"get_{safe_identifier(external_db.name)}_db"
+            if external_db.permissions:
+                permission_literal = python_literal(external_db.permissions)
+                lines.extend(
+                    [
+                        f"def {function_name}():",
+                        f"    return external_session(\"{external_db.name}\", {permission_literal})",
+                        "",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        f"def {function_name}():",
+                        f"    return external_session(\"{external_db.name}\")",
+                        "",
+                    ]
+                )
 
     if nested_create_relations:
         lines.append("NESTED_CREATE_RELATIONS = [")
@@ -828,6 +871,17 @@ def python_literal(value: Any) -> str:
         )
         return "{" + items + "}"
     return repr(value)
+
+
+def safe_identifier(value: str) -> str:
+    cleaned = "".join(
+        ch if (ch.isalnum() or ch == "_") else "_" for ch in value.strip().lower()
+    )
+    if not cleaned:
+        return "external_db"
+    if cleaned[0].isdigit():
+        return f"db_{cleaned}"
+    return cleaned
 
 
 def build_custom_schema_blocks(custom: list[CustomSchemaSpec]) -> list[str]:

@@ -78,6 +78,12 @@ class SchemaSpec:
 
 
 @dataclass(frozen=True)
+class ExternalDbSpec:
+    name: str
+    permissions: list[str]
+
+
+@dataclass(frozen=True)
 class ResourceSpec:
     version: str
     name: str
@@ -94,6 +100,7 @@ class ResourceSpec:
     tests: TestSpec
     relations: list[RelationSpec]
     schemas: SchemaSpec
+    external_dbs: list[ExternalDbSpec]
 
     @property
     def model_class(self) -> str:
@@ -140,6 +147,13 @@ def load_spec(path: Path) -> ResourceSpec:
         fields=fields,
         relations=relations,
     )
+    external_dbs = [
+        ExternalDbSpec(
+            name=external_db["name"],
+            permissions=external_db.get("permissions", []),
+        )
+        for external_db in data.get("external_dbs", [])
+    ]
     return ResourceSpec(
         version=data["version"],
         name=data["name"],
@@ -162,6 +176,7 @@ def load_spec(path: Path) -> ResourceSpec:
         tests=TestSpec(enabled=bool(data.get("tests", {}).get("enabled", True))),
         relations=relations,
         schemas=schemas,
+        external_dbs=external_dbs,
     )
 
 
@@ -185,7 +200,7 @@ def validate_spec(data: dict[str, Any]) -> None:
 
     schemas = data.get("schemas")
     if schemas is None:
-        return
+        schemas = {}
     if not isinstance(schemas, dict):
         raise ValueError("schemas must be an object.")
     for variant in ("create", "update", "response"):
@@ -227,6 +242,25 @@ def validate_spec(data: dict[str, Any]) -> None:
                 raise ValueError("schemas.custom.fields entries must be objects.")
             if not field.get("name") or not field.get("type"):
                 raise ValueError("schemas.custom.fields entries need name and type.")
+
+    external_dbs = data.get("external_dbs", [])
+    if external_dbs:
+        if not isinstance(external_dbs, list):
+            raise ValueError("external_dbs must be a list.")
+        for external_db in external_dbs:
+            if not isinstance(external_db, dict):
+                raise ValueError("external_dbs entries must be objects.")
+            name = external_db.get("name")
+            if not name:
+                raise ValueError("external_dbs entries require name.")
+            permissions = external_db.get("permissions", [])
+            if permissions is None:
+                permissions = []
+            if not isinstance(permissions, list):
+                raise ValueError("external_dbs.permissions must be a list.")
+            unknown = [perm for perm in permissions if perm not in {"create", "read", "update", "delete"}]
+            if unknown:
+                raise ValueError(f"external_dbs.permissions has invalid entries: {', '.join(unknown)}")
 
 
 def build_schema_spec(

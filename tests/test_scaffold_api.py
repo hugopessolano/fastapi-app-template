@@ -225,3 +225,57 @@ class TestScaffoldApi(unittest.TestCase):
             schema_path = root / "app" / "schemas" / "widgets_schemas.py"
             content = schema_path.read_text(encoding="utf-8")
             self.assertIn("Field(..., min_length=2)", content)
+
+    def test_external_db_helpers_generated(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = root / "specs" / "widgets.json"
+
+            app = create_api_app(root)
+            client = TestClient(app)
+
+            spec = {
+                "version": "v1",
+                "name": "widget",
+                "plural": "widgets",
+                "table_name": "widgets",
+                "tags": ["Widgets"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "name", "type": "String", "nullable": False, "unique": False}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+                "external_dbs": [
+                    {"name": "reporting", "permissions": ["read"]},
+                    {"name": "legacy", "permissions": []},
+                ],
+            }
+            response = client.post(
+                "/specs/write",
+                json={"path": str(spec_path.relative_to(root)), "spec": spec},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            response = client.post(
+                "/scaffold/create",
+                json={"spec_path": str(spec_path.relative_to(root))},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            logic_path = root / "app" / "endpoints_logic" / "v1" / "widgets.py"
+            content = logic_path.read_text(encoding="utf-8")
+            self.assertIn("def external_session", content)
+            self.assertIn("def get_reporting_db()", content)
+            self.assertIn("def get_legacy_db()", content)

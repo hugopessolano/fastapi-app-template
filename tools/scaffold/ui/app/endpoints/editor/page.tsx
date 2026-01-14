@@ -14,11 +14,20 @@ import {
   emptySpec,
   nextVersion,
   normalizeSpec,
+  ExternalDbSpec,
   SpecForm,
   SpecItem,
   SpecSummary,
 } from "@/lib/specs";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+
+type ExternalConnection = {
+  name: string;
+  permissions: string[];
+  backend?: string;
+};
+
+const defaultExternalPermissions = ["create", "read", "update", "delete"];
 
 export default function EndpointEditorPage() {
   const searchParams = useSearchParams();
@@ -28,6 +37,9 @@ export default function EndpointEditorPage() {
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
   const [tagsInput, setTagsInput] = useState(spec.tags.join(", "));
   const [isBusy, setIsBusy] = useState(false);
+  const [externalConnections, setExternalConnections] = useState<
+    ExternalConnection[]
+  >([]);
 
   const groupedSpecs = useMemo(() => {
     const groups = new Map<string, SpecItem[]>();
@@ -53,6 +65,7 @@ export default function EndpointEditorPage() {
 
   useEffect(() => {
     loadSpecs();
+    loadExternalConnections();
   }, []);
 
   useEffect(() => {
@@ -103,6 +116,15 @@ export default function EndpointEditorPage() {
         })
       );
       setSpecItems(detailed);
+    } catch (error) {
+      setStatus({ tone: "error", message: String(error) });
+    }
+  };
+
+  const loadExternalConnections = async () => {
+    try {
+      const data = await fetchJson("/external-dbs");
+      setExternalConnections(data.connections ?? []);
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
     }
@@ -210,6 +232,49 @@ export default function EndpointEditorPage() {
 
   const updateSpec = (updates: Partial<SpecForm>) =>
     setSpec((current) => ({ ...current, ...updates }));
+
+  const updateExternalDb = (index: number, updates: Partial<ExternalDbSpec>) =>
+    setSpec((current) => ({
+      ...current,
+      external_dbs: current.external_dbs.map((entry, idx) =>
+        idx === index ? { ...entry, ...updates } : entry
+      ),
+    }));
+
+  const removeExternalDb = (index: number) =>
+    setSpec((current) => ({
+      ...current,
+      external_dbs: current.external_dbs.filter((_, idx) => idx !== index),
+    }));
+
+  const addExternalDb = () => {
+    const selected = new Set(spec.external_dbs.map((item) => item.name));
+    const next = externalConnections.find((item) => !selected.has(item.name));
+    if (!next) {
+      setStatus({
+        tone: "error",
+        message: "No hay conexiones externas disponibles.",
+      });
+      return;
+    }
+    const nextPermissions =
+      next.permissions?.length > 0 ? next.permissions : defaultExternalPermissions;
+    setSpec((current) => ({
+      ...current,
+      external_dbs: [
+        ...current.external_dbs,
+        { name: next.name, permissions: [...nextPermissions] },
+      ],
+    }));
+  };
+
+  const availablePermissions = (name: string) => {
+    const entry = externalConnections.find((item) => item.name === name);
+    if (!entry || entry.permissions.length === 0) {
+      return defaultExternalPermissions;
+    }
+    return entry.permissions;
+  };
 
   const currentGroup = useMemo(() => {
     if (!specPath) {
@@ -402,6 +467,86 @@ export default function EndpointEditorPage() {
               <Button onClick={saveAndGenerate} disabled={isBusy}>
                 {primaryLabel}
               </Button>
+            </div>
+          </Section>
+
+          <Section
+            title="Bases externas"
+            info="Agrega conexiones externas para usarlas desde la logica del endpoint."
+            actions={
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={addExternalDb}
+                disabled={externalConnections.length === 0}
+              >
+                Agregar conexion
+              </Button>
+            }
+          >
+            {externalConnections.length === 0 ? (
+              <HelperText>
+                No hay conexiones registradas. Crealas en Bases externas.
+              </HelperText>
+            ) : null}
+            <div className="mt-4 space-y-3">
+              {spec.external_dbs.map((entry, index) => {
+                const permissions = availablePermissions(entry.name);
+                return (
+                  <div
+                    key={`${entry.name}-${index}`}
+                    className="rounded-2xl border border-border/60 bg-background/60 p-4"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="flex flex-1 flex-col gap-3">
+                        <FieldBlock label="Conexion">
+                          <select
+                            value={entry.name}
+                            onChange={(event) => {
+                              const name = event.target.value;
+                              updateExternalDb(index, {
+                                name,
+                                permissions: [...availablePermissions(name)],
+                              });
+                            }}
+                            className="h-10 rounded-2xl border border-input bg-background/70 px-3 text-sm"
+                          >
+                            {externalConnections.map((option) => (
+                              <option key={option.name} value={option.name}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        </FieldBlock>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {permissions.map((perm) => (
+                            <ToggleRow
+                              key={`${entry.name}-${perm}`}
+                              label={perm}
+                              checked={entry.permissions.includes(perm)}
+                              onChange={(checked) => {
+                                const next = checked
+                                  ? [...entry.permissions, perm]
+                                  : entry.permissions.filter((item) => item !== perm);
+                                updateExternalDb(index, {
+                                  permissions: Array.from(new Set(next)),
+                                });
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeExternalDb(index)}
+                      >
+                        Quitar
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Section>
 
