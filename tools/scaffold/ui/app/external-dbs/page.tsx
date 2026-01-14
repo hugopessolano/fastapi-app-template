@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { FieldBlock, HelperText, Section, ToggleRow } from "@/components/scaffold-ui";
 import { fetchJson } from "@/lib/scaffold-api";
+import { cn } from "@/lib/utils";
 import { useScaffoldStatus } from "@/components/scaffold-status";
 
 type ExternalConnection = {
@@ -44,6 +45,12 @@ const engineOptions = [
 
 const permissionOptions = ["create", "read", "update", "delete"] as const;
 type Permission = (typeof permissionOptions)[number];
+type ToastTone = "success" | "error";
+type ToastState = {
+  tone: ToastTone;
+  title: string;
+  message: string;
+};
 
 const emptyPermissions = () =>
   permissionOptions.reduce(
@@ -64,12 +71,24 @@ export default function ExternalDatabasesPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [database, setDatabase] = useState("");
+  const [manualConnectionUrl, setManualConnectionUrl] = useState("");
+  const [isManualConnection, setIsManualConnection] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [permissions, setPermissions] = useState<Record<Permission, boolean>>(
     emptyPermissions()
   );
 
   useEffect(() => {
     loadConnections();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+    };
   }, []);
 
   const loadConnections = async () => {
@@ -92,6 +111,8 @@ export default function ExternalDatabasesPage() {
     setUsername("");
     setPassword("");
     setDatabase("");
+    setManualConnectionUrl("");
+    setIsManualConnection(false);
     setPermissions(emptyPermissions());
   };
 
@@ -106,6 +127,8 @@ export default function ExternalDatabasesPage() {
     setUsername(parsed.username);
     setPassword(parsed.password);
     setDatabase(parsed.database);
+    setManualConnectionUrl(connection.url);
+    setIsManualConnection(false);
     const nextPermissions = emptyPermissions();
     permissionOptions.forEach((perm) => {
       nextPermissions[perm] = connection.permissions.includes(perm);
@@ -135,7 +158,7 @@ export default function ExternalDatabasesPage() {
     return `Ejemplo: ${engineExample}`;
   }, [engine, engineExample]);
 
-  const connectionUrl = useMemo(
+  const generatedConnectionUrl = useMemo(
     () =>
       buildConnectionUrl({
         engine,
@@ -148,13 +171,17 @@ export default function ExternalDatabasesPage() {
       }),
     [database, engine, host, password, port, sqlitePath, username]
   );
+  const activeConnectionUrl = isManualConnection
+    ? manualConnectionUrl.trim()
+    : generatedConnectionUrl;
+  const displayConnectionUrl = maskConnectionUrl(activeConnectionUrl);
 
   const saveConnection = async () => {
     if (!formName.trim()) {
       setStatus({ tone: "error", message: "Name is required." });
       return;
     }
-    if (!connectionUrl) {
+    if (!activeConnectionUrl) {
       setStatus({ tone: "error", message: "Connection data is required." });
       return;
     }
@@ -171,22 +198,28 @@ export default function ExternalDatabasesPage() {
         method: "POST",
         body: JSON.stringify({
           name: formName.trim(),
-          url: connectionUrl,
+          url: activeConnectionUrl,
           permissions: selectedPermissions,
         }),
       });
       await loadConnections();
       setStatus({ tone: "success", message: "External DB saved." });
+      showToast({
+        tone: "success",
+        title: "Conexion guardada",
+        message: "La conexion se guardo correctamente.",
+      });
       setSelectedName(formName.trim());
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
+      showToast(toastFromError(String(error), "No se pudo guardar la conexion."));
     } finally {
       setIsBusy(false);
     }
   };
 
   const testConnection = async () => {
-    if (!connectionUrl) {
+    if (!activeConnectionUrl) {
       setStatus({ tone: "error", message: "Connection data is required." });
       return;
     }
@@ -194,11 +227,17 @@ export default function ExternalDatabasesPage() {
       setIsBusy(true);
       await fetchJson("/external-dbs/test", {
         method: "POST",
-        body: JSON.stringify({ url: connectionUrl }),
+        body: JSON.stringify({ url: activeConnectionUrl }),
       });
       setStatus({ tone: "success", message: "Connection OK." });
+      showToast({
+        tone: "success",
+        title: "Conexion OK",
+        message: "La conexion respondio correctamente.",
+      });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
+      showToast(toastFromError(String(error), "No se pudo validar la conexion."));
     } finally {
       setIsBusy(false);
     }
@@ -220,15 +259,68 @@ export default function ExternalDatabasesPage() {
         resetForm();
       }
       setStatus({ tone: "success", message: "External DB removed." });
+      showToast({
+        tone: "success",
+        title: "Conexion eliminada",
+        message: "La conexion se elimino correctamente.",
+      });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
+      showToast(toastFromError(String(error), "No se pudo eliminar la conexion."));
     } finally {
       setIsBusy(false);
     }
   };
 
+  const toggleConnectionEditor = () => {
+    setIsManualConnection((current) => {
+      const next = !current;
+      if (next) {
+        setManualConnectionUrl((value) => value || generatedConnectionUrl);
+      }
+      return next;
+    });
+  };
+
+  const handleManualConnectionChange = (value: string) => {
+    setManualConnectionUrl(value);
+    const parsed = parseConnectionUrl(value);
+    setEngine(parsed.engine);
+    setSqlitePath(parsed.sqlitePath);
+    setHost(parsed.host);
+    setPort(parsed.port);
+    setUsername(parsed.username);
+    setPassword(parsed.password);
+    setDatabase(parsed.database);
+  };
+
+  const showToast = (next: ToastState) => {
+    setToast(next);
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    toastTimer.current = setTimeout(() => {
+      setToast(null);
+    }, 6000);
+  };
+
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
+      {toast ? (
+        <div
+          className={cn(
+            "fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-lg",
+            toast.tone === "success"
+              ? "border-primary/40 bg-primary/10 text-foreground"
+              : "border-destructive/40 bg-destructive/10 text-foreground"
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="text-sm font-semibold">{toast.title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{toast.message}</div>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between">
         <Button asChild variant="ghost" size="sm" className="gap-2">
           <Link href="/endpoints">
@@ -314,7 +406,7 @@ export default function ExternalDatabasesPage() {
                     </div>
                   </div>
                   <div className="mt-2 text-xs text-muted-foreground">
-                    {connection.url}
+                    {maskConnectionUrl(connection.url)}
                   </div>
                 </div>
               );
@@ -362,8 +454,26 @@ export default function ExternalDatabasesPage() {
                   <HelperText>{engineHelper}</HelperText>
                 </FieldBlock>
                 <FieldBlock label="Connection string">
-                  <Input value={connectionUrl} readOnly />
-                  <HelperText>Se genera automaticamente con los campos.</HelperText>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      value={isManualConnection ? manualConnectionUrl : displayConnectionUrl}
+                      readOnly={!isManualConnection}
+                      onChange={(event) => handleManualConnectionChange(event.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={toggleConnectionEditor}
+                    >
+                      {isManualConnection ? "Usar generado" : "Editar"}
+                    </Button>
+                  </div>
+                  <HelperText>
+                    {isManualConnection
+                      ? "Al editar se mostrara el password y se completaran los campos."
+                      : "Se genera automaticamente con los campos."}
+                  </HelperText>
                 </FieldBlock>
               </div>
             </Section>
@@ -556,4 +666,52 @@ function parseConnectionUrl(url: string): ParsedConnection {
     return parsed;
   }
   return parsed;
+}
+
+function maskConnectionUrl(url: string): string {
+  const trimmed = (url ?? "").trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (trimmed.startsWith("sqlite:")) {
+    return trimmed;
+  }
+  try {
+    const parsed = new URL(trimmed);
+    if (!parsed.password) {
+      return trimmed;
+    }
+    const masked = new URL(trimmed);
+    masked.password = "******";
+    return masked.toString();
+  } catch {
+    return trimmed.replace(
+      /:\/\/([^:@/]+):([^@/]+)@/g,
+      "://$1:******@"
+    );
+  }
+}
+
+function toastFromError(message: string, fallback: string): ToastState {
+  const cleaned = message.replace(/^Error:\s*/i, "").trim();
+  const missingDriver = cleaned.match(/No module named ['"](.+?)['"]/i);
+  if (missingDriver) {
+    return {
+      tone: "error",
+      title: "Driver faltante",
+      message: `Instala ${missingDriver[1]} en el backend.`,
+    };
+  }
+  if (cleaned.toLowerCase().includes("operationalerror")) {
+    return {
+      tone: "error",
+      title: "Conexion rechazada",
+      message: cleaned,
+    };
+  }
+  return {
+    tone: "error",
+    title: "Error de conexion",
+    message: cleaned || fallback,
+  };
 }

@@ -63,10 +63,10 @@ export default function ScaffoldShell({
   }, [pathname]);
 
   return (
-    <div className="relative flex min-h-screen">
+    <div className="relative min-h-screen">
       <aside
         className={cn(
-          "relative z-10 flex h-screen flex-col border-r border-border/60 bg-background/80 px-3 py-4 backdrop-blur",
+          "fixed inset-y-0 left-0 z-10 flex h-screen flex-col border-r border-border/60 bg-background/80 px-3 py-4 backdrop-blur",
           "transition-[width] duration-200 ease-out",
           collapsed ? "w-16" : "w-64"
         )}
@@ -93,7 +93,7 @@ export default function ScaffoldShell({
           </Button>
         </div>
 
-        <nav className="mt-6 flex flex-1 flex-col gap-2">
+        <nav className="mt-6 flex flex-1 flex-col gap-2 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = activeHref === item.href;
             const Icon = item.icon;
@@ -148,7 +148,12 @@ export default function ScaffoldShell({
         </div>
       </aside>
 
-      <main className="relative flex-1 overflow-hidden px-6 py-8 sm:px-10">
+      <main
+        className={cn(
+          "relative flex-1 overflow-hidden px-6 py-8 transition-[margin] duration-200 ease-out sm:px-10",
+          collapsed ? "ml-16" : "ml-64"
+        )}
+      >
         <div className="pointer-events-none absolute left-10 top-12 hidden h-24 w-24 rounded-full bg-accent/30 blur-2xl sm:block" />
         <div className="pointer-events-none absolute right-16 top-20 hidden h-32 w-32 rounded-full bg-primary/25 blur-3xl sm:block" />
         <div className="pointer-events-none absolute bottom-16 left-24 hidden h-28 w-28 rounded-full bg-secondary/40 blur-3xl sm:block" />
