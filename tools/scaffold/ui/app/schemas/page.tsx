@@ -982,15 +982,15 @@ export default function SchemaEditor() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-balance text-2xl font-semibold sm:text-3xl">
           Schemas
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-pretty text-sm text-muted-foreground">
           Define validaciones, variantes y relaciones de respuesta.
         </p>
       </div>
         <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-          <Card className="animate-fade-up">
+          <Card>
             <CardHeader>
               <CardTitle>Endpoints</CardTitle>
               <CardDescription>Selecciona una version para editar.</CardDescription>
@@ -998,16 +998,15 @@ export default function SchemaEditor() {
             <CardContent>
               <div className="space-y-4">
                 {groupedSpecs.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
+                  <div className="text-pretty rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
                     No hay endpoints creados todavia.
                   </div>
                 )}
-                {groupedSpecs.map((group, index) => (
-                  <div
-                    key={group.name}
-                    style={{ animationDelay: `${index * 60}ms` }}
-                    className="animate-fade-up rounded-3xl border border-border/60 bg-background/60 p-4"
-                  >
+                  {groupedSpecs.map((group) => (
+                    <div
+                      key={group.name}
+                      className="rounded-3xl border border-border/60 bg-background/60 p-4"
+                    >
                     <div className="text-base font-semibold text-foreground">
                       {group.name}
                     </div>
@@ -1055,7 +1054,7 @@ export default function SchemaEditor() {
             </CardContent>
           </Card>
 
-          <Card className="animate-fade-up">
+          <Card>
             <CardHeader>
               <CardTitle>Editar schemas</CardTitle>
               <CardDescription>
@@ -1112,7 +1111,7 @@ export default function SchemaEditor() {
                         setActiveTab(tab as "create" | "update" | "response" | "custom")
                       }
                       className={cn(
-                        "rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em]",
+                        "rounded-full border px-4 py-2 text-xs font-semibold uppercase",
                         activeTab === tab
                           ? "border-primary/60 bg-primary/10 text-primary"
                           : "border-border/60 text-muted-foreground"

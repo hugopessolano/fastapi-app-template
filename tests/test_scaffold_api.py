@@ -279,3 +279,69 @@ class TestScaffoldApi(unittest.TestCase):
             self.assertIn("def external_session", content)
             self.assertIn("def get_reporting_db()", content)
             self.assertIn("def get_legacy_db()", content)
+
+    def test_registry_updates_auth_flags_on_modify(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            root = Path(tempdir)
+            create_minimal_repo(root)
+            spec_path = root / "specs" / "widgets.json"
+
+            app = create_api_app(root)
+            client = TestClient(app)
+
+            spec = {
+                "version": "v1",
+                "name": "widget",
+                "plural": "widgets",
+                "table_name": "widgets",
+                "tags": ["Widgets"],
+                "auth_required": True,
+                "tenant_scoped": False,
+                "soft_delete": True,
+                "pagination": True,
+                "ordering": True,
+                "fields": [
+                    {"name": "name", "type": "String", "nullable": False, "unique": False}
+                ],
+                "endpoints": {
+                    "list": True,
+                    "get": True,
+                    "create": True,
+                    "update": True,
+                    "delete": True,
+                },
+                "tests": {"enabled": True},
+            }
+            response = client.post(
+                "/specs/write",
+                json={"path": str(spec_path.relative_to(root)), "spec": spec},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            response = client.post(
+                "/scaffold/create",
+                json={"spec_path": str(spec_path.relative_to(root))},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            registry_path = root / "app" / "routers" / "registry_data.json"
+            registry = read_json(registry_path)
+            entry = next(item for item in registry["v1"] if item["name"] == "widgets")
+            self.assertTrue(entry["requires_auth"])
+
+            spec["auth_required"] = False
+            response = client.post(
+                "/specs/write",
+                json={"path": str(spec_path.relative_to(root)), "spec": spec},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            response = client.post(
+                "/scaffold/modify",
+                json={"spec_path": str(spec_path.relative_to(root))},
+            )
+            self.assertEqual(response.status_code, 200)
+
+            registry = read_json(registry_path)
+            entry = next(item for item in registry["v1"] if item["name"] == "widgets")
+            self.assertFalse(entry["requires_auth"])

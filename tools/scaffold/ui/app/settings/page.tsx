@@ -382,14 +382,14 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-balance text-2xl font-semibold sm:text-3xl">
           Configuraciones
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-pretty text-sm text-muted-foreground">
           Ajusta defaults globales del template desde un panel unificado.
         </p>
       </div>
-      <Card className="animate-fade-up">
+      <Card>
         <CardHeader>
           <CardTitle>Defaults globales</CardTitle>
           <CardDescription>
@@ -399,7 +399,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-6">
           {settingsGroups.map((group) => (
             <div key={group.group} className="space-y-3">
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
                 {group.group}
               </div>
               <div className="grid gap-4 md:grid-cols-2">

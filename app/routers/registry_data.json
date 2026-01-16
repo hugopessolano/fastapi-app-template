@@ -45,7 +45,7 @@
     {
       "name": "customers",
       "module": "app.routers.v1.customers",
-      "requires_auth": true,
+      "requires_auth": false,
       "requires_tenants": false,
       "enabled": true
     },

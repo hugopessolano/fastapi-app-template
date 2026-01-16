@@ -35,7 +35,7 @@ export function Section({
 }) {
   return (
     <div className="rounded-3xl border border-border/60 bg-card/70 p-5">
-      <div className="mb-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="mb-4 flex items-center justify-between gap-3 text-xs font-semibold uppercase text-muted-foreground">
         <span>{title}</span>
         <div className="flex items-center gap-2">
           {actions}
@@ -58,7 +58,7 @@ export function FieldBlock({
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 text-xs uppercase text-muted-foreground">
         <label>{label}</label>
         {info ? <InfoTip text={info} /> : null}
       </div>
@@ -68,7 +68,7 @@ export function FieldBlock({
 }
 
 export function HelperText({ children }: { children: ReactNode }) {
-  return <p className="text-xs text-muted-foreground">{children}</p>;
+  return <p className="text-pretty text-xs text-muted-foreground">{children}</p>;
 }
 
 export function ToggleRow({
@@ -94,7 +94,7 @@ export function InfoTip({ text }: { text: string }) {
       <span className="flex h-5 w-5 items-center justify-center rounded-full border border-border/60 text-[10px] font-semibold text-muted-foreground">
         i
       </span>
-      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-56 -translate-x-1/2 rounded-2xl border border-border/70 bg-background/95 px-3 py-2 text-xs normal-case text-muted-foreground opacity-0 shadow-lg transition group-hover:opacity-100">
+      <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-56 -translate-x-1/2 rounded-2xl border border-border/70 bg-background/95 px-3 py-2 text-pretty text-xs normal-case text-muted-foreground opacity-0 shadow-lg group-hover:opacity-100">
         {text}
       </span>
     </span>

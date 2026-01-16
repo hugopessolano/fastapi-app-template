@@ -309,11 +309,15 @@ export default function ExternalDatabasesPage() {
       {toast ? (
         <div
           className={cn(
-            "fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-lg",
+            "fixed z-50 max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-lg",
             toast.tone === "success"
               ? "border-primary/40 bg-primary/10 text-foreground"
               : "border-destructive/40 bg-destructive/10 text-foreground"
           )}
+          style={{
+            bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+            right: "calc(1.5rem + env(safe-area-inset-right))",
+          }}
           role="status"
           aria-live="polite"
         >
@@ -331,16 +335,16 @@ export default function ExternalDatabasesPage() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-balance text-2xl font-semibold sm:text-3xl">
           Bases externas
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-pretty text-sm text-muted-foreground">
           Registra conexiones externas y controla permisos por conexion.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-        <Card className="animate-fade-up">
+        <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle>Conexiones</CardTitle>
@@ -354,7 +358,7 @@ export default function ExternalDatabasesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {connections.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
+              <div className="text-pretty rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
                 No hay conexiones externas configuradas.
               </div>
             )}
@@ -382,7 +386,7 @@ export default function ExternalDatabasesPage() {
                         {connection.backend ?? "unknown"} - {permissionsLabel}
                       </div>
                       {connection.source === "legacy" && (
-                        <div className="mt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+                        <div className="mt-1 text-[10px] uppercase text-muted-foreground">
                           Legacy
                         </div>
                       )}
@@ -417,7 +421,7 @@ export default function ExternalDatabasesPage() {
           </CardContent>
         </Card>
 
-        <Card className="animate-fade-up">
+        <Card>
           <CardHeader>
             <CardTitle>
               {selectedName ? "Editar conexion" : "Crear conexion"}

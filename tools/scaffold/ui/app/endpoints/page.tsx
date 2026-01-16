@@ -186,10 +186,10 @@ export default function EndpointsPage() {
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h1 className="text-balance text-2xl font-semibold sm:text-3xl">
             Endpoints
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-pretty text-sm text-muted-foreground">
             Administra endpoints y versiones desde una vista compacta.
           </p>
         </div>
@@ -203,7 +203,7 @@ export default function EndpointsPage() {
         </div>
       </div>
 
-      <Card className="animate-fade-up">
+      <Card>
         <CardHeader>
           <CardTitle>Listado</CardTitle>
           <CardDescription>
@@ -212,18 +212,17 @@ export default function EndpointsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {visibleGroups.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
+            <div className="text-pretty rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
               No hay endpoints creados todavia.
             </div>
           )}
-          {visibleGroups.map((group, index) => {
-            const selectedItem = selectedItemForGroup(group);
-            return (
-              <div
-                key={group.name}
-                style={{ animationDelay: `${index * 60}ms` }}
-                className="animate-fade-up rounded-3xl border border-border/60 bg-background/60 p-4"
-              >
+              {visibleGroups.map((group) => {
+                const selectedItem = selectedItemForGroup(group);
+                return (
+                  <div
+                    key={group.name}
+                    className="rounded-3xl border border-border/60 bg-background/60 p-4"
+                  >
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="space-y-1">
                     <div className="text-base font-semibold text-foreground">

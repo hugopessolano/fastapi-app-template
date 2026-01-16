@@ -335,16 +335,16 @@ export default function ModelEditor() {
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-balance text-2xl font-semibold sm:text-3xl">
           Modelos
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-pretty text-sm text-muted-foreground">
           Ajusta campos, relaciones y claves foraneas sin perder consistencia.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
-        <Card className="animate-fade-up">
+        <Card>
           <CardHeader>
             <CardTitle>Endpoints</CardTitle>
             <CardDescription>Selecciona una version para editar.</CardDescription>
@@ -352,15 +352,14 @@ export default function ModelEditor() {
           <CardContent>
             <div className="space-y-4">
               {groupedSpecs.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
+                <div className="text-pretty rounded-2xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
                   No hay endpoints creados todavia.
                 </div>
               )}
-              {groupedSpecs.map((group, index) => (
+              {groupedSpecs.map((group) => (
                 <div
                   key={group.name}
-                  style={{ animationDelay: `${index * 60}ms` }}
-                  className="animate-fade-up rounded-3xl border border-border/60 bg-background/60 p-4"
+                  className="rounded-3xl border border-border/60 bg-background/60 p-4"
                 >
                   <div className="text-base font-semibold text-foreground">
                     {group.name}
@@ -409,7 +408,7 @@ export default function ModelEditor() {
           </CardContent>
         </Card>
 
-        <Card className="animate-fade-up">
+        <Card>
           <CardHeader>
             <CardTitle>Editar modelo</CardTitle>
             <CardDescription>

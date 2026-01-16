@@ -26,8 +26,14 @@ def ensure_registry_entry(root: Path, spec: ResourceSpec) -> None:
     version = spec.version
     data.setdefault(version, [])
     module = f"app.routers.{spec.version}.{spec.plural}"
-    exists = any(item.get("name") == spec.plural for item in data[version])
-    if not exists:
+    entry = next((item for item in data[version] if item.get("name") == spec.plural), None)
+    if entry:
+        entry["module"] = module
+        entry["requires_auth"] = spec.auth_required
+        entry["requires_tenants"] = spec.tenant_scoped
+        if "enabled" not in entry:
+            entry["enabled"] = True
+    else:
         data[version].append(
             {
                 "name": spec.plural,

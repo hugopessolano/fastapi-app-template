@@ -6,7 +6,7 @@
   "tags": [
     "Customers"
   ],
-  "auth_required": true,
+  "auth_required": false,
   "tenant_scoped": false,
   "soft_delete": true,
   "pagination": true,

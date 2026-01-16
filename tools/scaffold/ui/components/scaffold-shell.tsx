@@ -63,21 +63,24 @@ export default function ScaffoldShell({
   }, [pathname]);
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-dvh">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-10 flex h-screen flex-col border-r border-border/60 bg-background/80 px-3 py-4 backdrop-blur",
-          "transition-[width] duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-10 flex h-dvh flex-col border-r border-border/60 bg-background/80 px-3 backdrop-blur",
           collapsed ? "w-16" : "w-64"
         )}
+        style={{
+          paddingTop: "calc(1rem + env(safe-area-inset-top))",
+          paddingBottom: "calc(1rem + env(safe-area-inset-bottom))",
+        }}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/20 text-primary">
-              <ServerCog className="h-4 w-4" />
+            <span className="flex size-9 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+              <ServerCog className="size-4" />
             </span>
             {!collapsed && (
-              <span className="text-sm font-semibold tracking-wide text-foreground">
+              <span className="text-balance text-sm font-semibold text-foreground">
                 Scaffold
               </span>
             )}
@@ -87,9 +90,9 @@ export default function ScaffoldShell({
             size="icon"
             onClick={() => setCollapsed((current) => !current)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="h-8 w-8"
+            className="size-8"
           >
-            <Menu className="h-4 w-4" />
+            <Menu className="size-4" />
           </Button>
         </div>
 
@@ -102,14 +105,14 @@ export default function ScaffoldShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-2xl px-3 py-2 text-sm transition",
+                  "flex items-center gap-3 rounded-2xl px-3 py-2 text-sm",
                   isActive
                     ? "bg-primary/15 text-primary"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
                 title={collapsed ? item.label : undefined}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="size-4" />
                 {!collapsed && <span>{item.label}</span>}
               </Link>
             );
@@ -123,7 +126,7 @@ export default function ScaffoldShell({
           )}
         >
           {!collapsed && (
-            <div className="mb-2 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+            <div className="mb-2 text-[10px] uppercase text-muted-foreground">
               API Status
             </div>
           )}
@@ -150,7 +153,7 @@ export default function ScaffoldShell({
 
       <main
         className={cn(
-          "relative flex-1 overflow-hidden px-6 py-8 transition-[margin] duration-200 ease-out sm:px-10",
+          "relative flex-1 overflow-hidden px-6 py-8 sm:px-10",
           collapsed ? "ml-16" : "ml-64"
         )}
       >

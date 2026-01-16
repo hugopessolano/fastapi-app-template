@@ -51,7 +51,6 @@ def list_customers(
     request: Request,
     response: Response,
     db: Session,
-    auth: AuthContext,
     page: int,
     page_size: int,
     order_by: str,

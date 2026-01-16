@@ -3,15 +3,27 @@
   "name": "order_item",
   "plural": "order_items",
   "table_name": "order_items",
-  "tags": ["Order Items"],
+  "tags": [
+    "Order Items"
+  ],
   "auth_required": true,
   "tenant_scoped": false,
   "soft_delete": true,
   "pagination": true,
   "ordering": true,
   "fields": [
-    {"name": "quantity", "type": "Integer", "nullable": false, "unique": false},
-    {"name": "unit_price", "type": "Float", "nullable": false, "unique": false}
+    {
+      "name": "quantity",
+      "type": "Integer",
+      "nullable": false,
+      "unique": false
+    },
+    {
+      "name": "unit_price",
+      "type": "Float",
+      "nullable": false,
+      "unique": false
+    }
   ],
   "relations": [
     {
@@ -44,5 +56,136 @@
     "update": true,
     "delete": true
   },
-  "tests": {"enabled": true}
+  "tests": {
+    "enabled": true
+  },
+  "schemas": {
+    "create": {
+      "fields": [
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "required": true,
+          "enabled": true,
+          "constraints": {
+            "gt": 0
+          }
+        },
+        {
+          "name": "unit_price",
+          "type": "Float",
+          "required": true,
+          "enabled": true,
+          "constraints": {
+            "gt": 0
+          }
+        },
+        {
+          "name": "order_id",
+          "type": "String",
+          "required": true,
+          "enabled": true
+        },
+        {
+          "name": "product_id",
+          "type": "String",
+          "required": true,
+          "enabled": true
+        }
+      ],
+      "relations": [
+        {
+          "name": "order",
+          "mode": "ids"
+        },
+        {
+          "name": "product",
+          "mode": "ids"
+        }
+      ]
+    },
+    "update": {
+      "fields": [
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "required": false,
+          "enabled": true,
+          "constraints": {
+            "gt": 0
+          }
+        },
+        {
+          "name": "unit_price",
+          "type": "Float",
+          "required": false,
+          "enabled": true,
+          "constraints": {
+            "gt": 0
+          }
+        },
+        {
+          "name": "order_id",
+          "type": "String",
+          "required": false,
+          "enabled": true
+        },
+        {
+          "name": "product_id",
+          "type": "String",
+          "required": false,
+          "enabled": true
+        }
+      ],
+      "relations": [
+        {
+          "name": "order",
+          "mode": "ids"
+        },
+        {
+          "name": "product",
+          "mode": "ids"
+        }
+      ]
+    },
+    "response": {
+      "fields": [
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "required": true,
+          "enabled": true
+        },
+        {
+          "name": "unit_price",
+          "type": "Float",
+          "required": true,
+          "enabled": true
+        },
+        {
+          "name": "order_id",
+          "type": "String",
+          "required": true,
+          "enabled": true
+        },
+        {
+          "name": "product_id",
+          "type": "String",
+          "required": true,
+          "enabled": true
+        }
+      ],
+      "relations": [
+        {
+          "name": "order",
+          "mode": "ids"
+        },
+        {
+          "name": "product",
+          "mode": "ids"
+        }
+      ]
+    },
+    "custom": []
+  }
 }

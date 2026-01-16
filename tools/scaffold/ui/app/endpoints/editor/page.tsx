@@ -196,8 +196,7 @@ export default function EndpointEditorPage() {
         method: "POST",
         body: JSON.stringify({ path: specPath, spec: specPayload }),
       });
-      const action = isExisting ? "modify" : "create";
-      await fetchJson(`/scaffold/${action}`, {
+      await fetchJson("/scaffold/sync", {
         method: "POST",
         body: JSON.stringify({ spec_path: specPath }),
       });
@@ -298,7 +297,7 @@ export default function EndpointEditorPage() {
         </div>
       </div>
 
-      <Card className="animate-fade-up">
+      <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle>
