@@ -23,6 +23,7 @@ import {
 } from "@/components/scaffold-ui";
 import { fetchJson } from "@/lib/scaffold-api";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type SpecSummary = {
   path: string;
@@ -151,6 +152,7 @@ function defaultForeignKey(target: string) {
 export default function ModelEditor() {
   const searchParams = useSearchParams();
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
@@ -183,25 +185,31 @@ export default function ModelEditor() {
   );
 
   useEffect(() => {
-    loadSpecs();
-  }, []);
+    if (activeProject) {
+      loadSpecs(activeProject.id);
+    }
+  }, [activeProject]);
 
   useEffect(() => {
+    if (!activeProject) {
+      return;
+    }
     const path = searchParams.get("path");
     if (path) {
       selectSpec(path);
     }
-  }, [searchParams]);
+  }, [activeProject, searchParams]);
 
-  const loadSpecs = async () => {
+  const loadSpecs = async (projectId: string) => {
     try {
-      const data = await fetchJson("/specs");
+      const data = await fetchJson("/specs", { projectId });
       const list: SpecSummary[] = data.specs ?? [];
       const detailed = await Promise.all(
         list.map(async (item) => {
           try {
             const detail = await fetchJson(
-              `/specs/read?path=${encodeURIComponent(item.path)}`
+              `/specs/read?path=${encodeURIComponent(item.path)}`,
+              { projectId }
             );
             return {
               path: item.path,
@@ -228,8 +236,13 @@ export default function ModelEditor() {
 
   const selectSpec = async (path: string) => {
     try {
+      if (!activeProject) {
+        return;
+      }
       setSpecPath(path);
-      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`);
+      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`, {
+        projectId: activeProject.id,
+      });
       const normalized = normalizeSpec(data.spec ?? {});
       setSpec(normalized);
       setStatus({ tone: "success", message: "Spec loaded." });
@@ -243,18 +256,23 @@ export default function ModelEditor() {
       setStatus({ tone: "error", message: "Spec path is required." });
       return;
     }
+    if (!activeProject) {
+      return;
+    }
     try {
       setIsBusy(true);
       await fetchJson("/specs/write", {
         method: "POST",
         body: JSON.stringify({ path: specPath, spec }),
+        projectId: activeProject.id,
       });
       const action = isExisting ? "modify" : "create";
       await fetchJson(`/scaffold/${action}`, {
         method: "POST",
         body: JSON.stringify({ spec_path: specPath }),
+        projectId: activeProject.id,
       });
-      await loadSpecs();
+      await loadSpecs(activeProject.id);
       setStatus({ tone: "success", message: "Changes saved and generated." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -322,6 +340,10 @@ export default function ModelEditor() {
       ],
     }));
 
+
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -400,7 +422,7 @@ export default function ModelEditor() {
               variant="secondary"
               size="sm"
               className="mt-5 w-full"
-              onClick={loadSpecs}
+              onClick={() => loadSpecs(activeProject.id)}
               disabled={isBusy}
             >
               Refresh list
@@ -440,7 +462,7 @@ export default function ModelEditor() {
               <div className="space-y-3">
                 {spec.fields.map((field, index) => (
                   <div
-                    key={`${field.name}-${index}`}
+                    key={`field-${index}`}
                     className="grid gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]"
                   >
                     <Input
@@ -506,7 +528,7 @@ export default function ModelEditor() {
               <div className="space-y-3">
                 {spec.relations.map((relation, index) => (
                   <div
-                    key={`${relation.name}-${index}`}
+                    key={`relation-${index}`}
                     className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4"
                   >
                     <div className="grid gap-3 md:grid-cols-2">

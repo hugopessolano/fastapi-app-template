@@ -4,9 +4,26 @@ import { beforeEach, vi } from "vitest";
 
 import ExternalDatabasesPage from "../external-dbs/page";
 import { ScaffoldStatusProvider } from "../../components/scaffold-status";
+import { ProjectProvider } from "../../components/project-context";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
+const demoProject = {
+  id: "demo",
+  name: "Demo API",
+  path: "/tmp/demo",
+};
 
 const renderWithStatus = (ui: ReactElement) =>
-  render(<ScaffoldStatusProvider>{ui}</ScaffoldStatusProvider>);
+  render(
+    <ScaffoldStatusProvider>
+      <ProjectProvider initialProjects={[demoProject]} initialActiveId="demo">
+        {ui}
+      </ProjectProvider>
+    </ScaffoldStatusProvider>
+  );
 
 beforeEach(() => {
   vi.stubGlobal(

@@ -23,6 +23,7 @@ import {
 } from "@/components/scaffold-ui";
 import { fetchJson } from "@/lib/scaffold-api";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type SpecSummary = {
   path: string;
@@ -412,6 +413,55 @@ const normalizeSchemas = (spec: SpecForm, rawSchemas?: any): SchemaSpecForm => {
   };
 };
 
+const buildVariantDefaults = (
+  spec: SpecForm,
+  variant: "create" | "update" | "response"
+) => {
+  const baseFields = buildSchemaFields(spec.fields, spec.relations);
+  return baseFields.map((field) =>
+    buildSchemaField(field, variant === "update" ? false : !field.nullable, "model")
+  );
+};
+
+const syncVariantFields = (
+  spec: SpecForm,
+  variant: "create" | "update" | "response",
+  currentFields: SchemaFieldForm[]
+) => {
+  const defaults = buildVariantDefaults(spec, variant);
+  const currentMap = new Map(currentFields.map((field) => [field.name, field]));
+  const merged = defaults.map((field) => {
+    const existing = currentMap.get(field.name);
+    if (!existing) {
+      return field;
+    }
+    currentMap.delete(field.name);
+    return {
+      ...field,
+      required: existing.required,
+      enabled: existing.enabled,
+      defaultValue: existing.defaultValue ?? "",
+      description: existing.description ?? "",
+      example: existing.example ?? "",
+      constraints: {
+        ...emptyConstraints(),
+        ...(existing.constraints ?? {}),
+      },
+    };
+  });
+  currentMap.forEach((field) => {
+    merged.push({
+      ...field,
+      source: "custom",
+      constraints: {
+        ...emptyConstraints(),
+        ...(field.constraints ?? {}),
+      },
+    });
+  });
+  return merged;
+};
+
 const serializeConstraints = (constraints: SchemaConstraintForm) => {
   const payload: Record<string, unknown> = {};
   const mapping = [
@@ -480,7 +530,9 @@ const serializeSchemas = (schemas: SchemaSpecForm) => ({
 
 export default function SchemaEditor() {
   const searchParams = useSearchParams();
+  const pathParam = searchParams.get("path") ?? "";
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
@@ -497,6 +549,13 @@ export default function SchemaEditor() {
     response: false,
     custom: false,
   });
+  const [showDisabledFields, setShowDisabledFields] = useState({
+    create: false,
+    update: false,
+    response: false,
+  });
+  const [syncAllVariants, setSyncAllVariants] = useState(false);
+  const [isSyncingFields, setIsSyncingFields] = useState(false);
 
   const existingPaths = useMemo(
     () => new Set(specItems.map((item) => item.path)),
@@ -520,25 +579,28 @@ export default function SchemaEditor() {
   }, [specItems]);
 
   useEffect(() => {
-    loadSpecs();
-  }, []);
+    if (activeProject) {
+      loadSpecs(activeProject.id);
+    }
+  }, [activeProject]);
 
   useEffect(() => {
-    const path = searchParams.get("path");
-    if (path) {
-      selectSpec(path);
+    if (!activeProject || !pathParam) {
+      return;
     }
-  }, [searchParams]);
+    selectSpec(pathParam);
+  }, [activeProject, pathParam]);
 
-  const loadSpecs = async () => {
+  const loadSpecs = async (projectId: string) => {
     try {
-      const data = await fetchJson("/specs");
+      const data = await fetchJson("/specs", { projectId });
       const list: SpecSummary[] = data.specs ?? [];
       const detailed = await Promise.all(
         list.map(async (item) => {
           try {
             const detail = await fetchJson(
-              `/specs/read?path=${encodeURIComponent(item.path)}`
+              `/specs/read?path=${encodeURIComponent(item.path)}`,
+              { projectId }
             );
             return {
               path: item.path,
@@ -565,8 +627,13 @@ export default function SchemaEditor() {
 
   const selectSpec = async (path: string) => {
     try {
+      if (!activeProject) {
+        return;
+      }
       setSpecPath(path);
-      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`);
+      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`, {
+        projectId: activeProject.id,
+      });
       const normalized = normalizeSpec(data.spec ?? {});
       setSpec(normalized);
       setSchemas(normalizeSchemas(normalized, data.spec?.schemas));
@@ -581,6 +648,9 @@ export default function SchemaEditor() {
       setStatus({ tone: "error", message: "Spec path is required." });
       return;
     }
+    if (!activeProject) {
+      return;
+    }
     try {
       setIsBusy(true);
       const payload = {
@@ -590,18 +660,73 @@ export default function SchemaEditor() {
       await fetchJson("/specs/write", {
         method: "POST",
         body: JSON.stringify({ path: specPath, spec: payload }),
+        projectId: activeProject.id,
       });
       const action = isExisting ? "modify" : "create";
       await fetchJson(`/scaffold/${action}`, {
         method: "POST",
         body: JSON.stringify({ spec_path: specPath }),
+        projectId: activeProject.id,
       });
-      await loadSpecs();
+      await loadSpecs(activeProject.id);
       setStatus({ tone: "success", message: "Changes saved and generated." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
     } finally {
       setIsBusy(false);
+    }
+  };
+
+  const syncFieldsFromModel = async () => {
+    if (!activeProject) {
+      return;
+    }
+    if (!specPath.trim()) {
+      setStatus({ tone: "error", message: "Spec path is required." });
+      return;
+    }
+    if (activeTab === "custom" && !syncAllVariants) {
+      setStatus({
+        tone: "error",
+        message: "Selecciona una variante antes de sincronizar.",
+      });
+      return;
+    }
+    try {
+      setIsSyncingFields(true);
+      const data = await fetchJson(
+        `/specs/read?path=${encodeURIComponent(specPath)}`,
+        { projectId: activeProject.id }
+      );
+      const normalized = normalizeSpec(data.spec ?? {});
+      const targets: Array<"create" | "update" | "response"> = syncAllVariants
+        ? ["create", "update", "response"]
+        : [activeTab as "create" | "update" | "response"];
+      setSpec(normalized);
+      setSchemas((current) => {
+        const next = { ...current };
+        targets.forEach((variant) => {
+          next[variant] = {
+            ...current[variant],
+            fields: syncVariantFields(
+              normalized,
+              variant,
+              current[variant].fields
+            ),
+          };
+        });
+        return next;
+      });
+      setStatus({
+        tone: "success",
+        message: syncAllVariants
+          ? "Campos sincronizados en todas las variantes."
+          : "Campos sincronizados.",
+      });
+    } catch (error) {
+      setStatus({ tone: "error", message: String(error) });
+    } finally {
+      setIsSyncingFields(false);
     }
   };
 
@@ -668,7 +793,9 @@ export default function SchemaEditor() {
       ...current,
       [variant]: {
         ...current[variant],
-        fields: current[variant].fields.filter((_, idx) => idx !== index),
+        fields: current[variant].fields.map((field, idx) =>
+          idx === index ? { ...field, enabled: false } : field
+        ),
       },
     }));
   };
@@ -968,7 +1095,16 @@ export default function SchemaEditor() {
     activeTab === "custom" ? schemas.create : schemas[activeTab];
   const relationVariant =
     activeTab === "custom" ? [] : schemas[activeTab].relations;
+  const canSyncActiveVariant = activeTab !== "custom";
+  const showDisabledActive =
+    activeTab === "custom"
+      ? false
+      : showDisabledFields[activeTab as "create" | "update" | "response"];
 
+
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -1046,7 +1182,7 @@ export default function SchemaEditor() {
                 variant="secondary"
                 size="sm"
                 className="mt-5 w-full"
-                onClick={loadSpecs}
+                onClick={() => activeProject && loadSpecs(activeProject.id)}
                 disabled={isBusy}
               >
                 Refresh list
@@ -1128,22 +1264,62 @@ export default function SchemaEditor() {
                   <Section
                     title="Campos"
                     info="Personaliza cada campo por variante."
+                    actions={
+                      <div className="flex flex-wrap items-center gap-3 text-xs font-normal normal-case">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Toggle
+                            checked={showDisabledActive}
+                            onChange={(value) =>
+                              setShowDisabledFields((current) => ({
+                                ...current,
+                                [activeTab as "create" | "update" | "response"]:
+                                  value,
+                              }))
+                            }
+                          />
+                          Mostrar deshabilitados
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Toggle
+                            checked={syncAllVariants}
+                            onChange={setSyncAllVariants}
+                          />
+                          Todas las variantes
+                        </label>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={syncFieldsFromModel}
+                          disabled={
+                            isSyncingFields ||
+                            !specPath.trim() ||
+                            (!syncAllVariants && !canSyncActiveVariant)
+                          }
+                        >
+                          Sincronizar campos
+                        </Button>
+                      </div>
+                    }
                   >
                     <div className="space-y-3">
-                      {currentVariant.fields.map((field, index) => (
-                        <div key={`${field.name}-${index}`}>
-                          {renderFieldEditor(
-                            field,
-                            (updates) =>
-                              updateVariantField(activeTab, index, updates),
-                            (key) => toggleVariantField(activeTab, index, key),
-                            field.source === "custom"
-                              ? () => removeVariantField(activeTab, index)
-                              : undefined,
-                            showAdvanced[activeTab]
-                          )}
-                        </div>
-                      ))}
+                      {currentVariant.fields.map((field, index) => {
+                        if (!showDisabledActive && !field.enabled) {
+                          return null;
+                        }
+                        return (
+                          <div key={`schema-field-${activeTab}-${index}`}>
+                            {renderFieldEditor(
+                              field,
+                              (updates) =>
+                                updateVariantField(activeTab, index, updates),
+                              (key) =>
+                                toggleVariantField(activeTab, index, key),
+                              () => removeVariantField(activeTab, index),
+                              showAdvanced[activeTab]
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     <Button
                       variant="secondary"
@@ -1167,7 +1343,7 @@ export default function SchemaEditor() {
                       <div className="space-y-3">
                         {relationVariant.map((relation, index) => (
                           <div
-                            key={relation.name}
+                            key={`schema-relation-${activeTab}-${index}`}
                             className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 md:flex-row md:items-center md:justify-between"
                           >
                             <div>
@@ -1214,7 +1390,7 @@ export default function SchemaEditor() {
                   <div className="space-y-4">
                     {schemas.custom.map((schema, index) => (
                       <div
-                        key={`${schema.name}-${index}`}
+                        key={`custom-schema-${index}`}
                         className="space-y-3 rounded-3xl border border-border/60 bg-background/70 p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -1238,7 +1414,7 @@ export default function SchemaEditor() {
                         </div>
                         <div className="space-y-3">
                           {schema.fields.map((field, fieldIndex) => (
-                            <div key={`${field.name}-${fieldIndex}`}>
+                            <div key={`custom-schema-${index}-field-${fieldIndex}`}>
                               {renderFieldEditor(
                                 field,
                                 (updates) =>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Database,
   FileJson2,
+  FolderKanban,
   LayoutGrid,
   Menu,
   ServerCog,
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { API_BASE } from "@/lib/scaffold-api";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useProjects } from "@/components/project-context";
 
 type NavItem = {
   label: string;
@@ -24,6 +26,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  { label: "Proyectos", href: "/projects", icon: FolderKanban },
   { label: "Endpoints", href: "/endpoints", icon: LayoutGrid },
   { label: "Models", href: "/models", icon: Database },
   { label: "Schemas", href: "/schemas", icon: FileJson2 },
@@ -40,6 +43,7 @@ export default function ScaffoldShell({
 }) {
   const pathname = usePathname();
   const { status } = useScaffoldStatus();
+  const { activeProject } = useProjects();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -54,12 +58,13 @@ export default function ScaffoldShell({
   }, [collapsed]);
 
   const activeHref = useMemo(() => {
+    if (pathname.startsWith("/projects")) return "/projects";
     if (pathname.startsWith("/endpoints")) return "/endpoints";
     if (pathname.startsWith("/models")) return "/models";
     if (pathname.startsWith("/schemas")) return "/schemas";
     if (pathname.startsWith("/external-dbs")) return "/external-dbs";
     if (pathname.startsWith("/settings")) return "/settings";
-    return "/endpoints";
+    return "/projects";
   }, [pathname]);
 
   return (
@@ -118,6 +123,20 @@ export default function ScaffoldShell({
             );
           })}
         </nav>
+
+        {activeProject && !collapsed && (
+          <div className="mb-4 rounded-2xl border border-border/60 bg-muted/30 px-3 py-2 text-xs">
+            <div className="text-[10px] uppercase text-muted-foreground">
+              Proyecto activo
+            </div>
+            <div className="text-sm font-medium text-foreground">
+              {activeProject.name}
+            </div>
+            <div className="mt-1 text-[10px] text-muted-foreground">
+              {activeProject.path}
+            </div>
+          </div>
+        )}
 
         <div
           className={cn(

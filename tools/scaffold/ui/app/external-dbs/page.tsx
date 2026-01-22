@@ -16,6 +16,7 @@ import { FieldBlock, HelperText, Section, ToggleRow } from "@/components/scaffol
 import { fetchJson } from "@/lib/scaffold-api";
 import { cn } from "@/lib/utils";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type ExternalConnection = {
   name: string;
@@ -60,6 +61,7 @@ const emptyPermissions = () =>
 
 export default function ExternalDatabasesPage() {
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [connections, setConnections] = useState<ExternalConnection[]>([]);
   const [isBusy, setIsBusy] = useState(false);
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -80,8 +82,10 @@ export default function ExternalDatabasesPage() {
   );
 
   useEffect(() => {
-    loadConnections();
-  }, []);
+    if (activeProject) {
+      loadConnections(activeProject.id);
+    }
+  }, [activeProject]);
 
   useEffect(() => {
     return () => {
@@ -91,9 +95,9 @@ export default function ExternalDatabasesPage() {
     };
   }, []);
 
-  const loadConnections = async () => {
+  const loadConnections = async (projectId: string) => {
     try {
-      const data = await fetchJson("/external-dbs");
+      const data = await fetchJson("/external-dbs", { projectId });
       setConnections(data.connections ?? []);
       setStatus({ tone: "success", message: "External DBs loaded." });
     } catch (error) {
@@ -201,8 +205,11 @@ export default function ExternalDatabasesPage() {
           url: activeConnectionUrl,
           permissions: selectedPermissions,
         }),
+        projectId: activeProject.id,
       });
-      await loadConnections();
+      if (activeProject) {
+        await loadConnections(activeProject.id);
+      }
       setStatus({ tone: "success", message: "External DB saved." });
       showToast({
         tone: "success",
@@ -228,6 +235,7 @@ export default function ExternalDatabasesPage() {
       await fetchJson("/external-dbs/test", {
         method: "POST",
         body: JSON.stringify({ url: activeConnectionUrl }),
+        projectId: activeProject.id,
       });
       setStatus({ tone: "success", message: "Connection OK." });
       showToast({
@@ -253,8 +261,11 @@ export default function ExternalDatabasesPage() {
       await fetchJson("/external-dbs/delete", {
         method: "POST",
         body: JSON.stringify({ name }),
+        projectId: activeProject.id,
       });
-      await loadConnections();
+      if (activeProject) {
+        await loadConnections(activeProject.id);
+      }
       if (selectedName === name) {
         resetForm();
       }
@@ -303,6 +314,10 @@ export default function ExternalDatabasesPage() {
       setToast(null);
     }, 6000);
   };
+
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -415,7 +430,11 @@ export default function ExternalDatabasesPage() {
                 </div>
               );
             })}
-            <Button variant="secondary" size="sm" onClick={loadConnections}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => loadConnections(activeProject.id)}
+            >
               Refresh list
             </Button>
           </CardContent>

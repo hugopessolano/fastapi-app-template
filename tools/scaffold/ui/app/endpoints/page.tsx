@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { fetchJson } from "@/lib/scaffold-api";
 import { buildVersionPath, nextVersion, SpecItem, SpecSummary } from "@/lib/specs";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type SpecGroup = {
   name: string;
@@ -17,14 +18,17 @@ type SpecGroup = {
 export default function EndpointsPage() {
   const router = useRouter();
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState("");
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
-    loadSpecs();
-  }, []);
+    if (activeProject) {
+      loadSpecs(activeProject.id);
+    }
+  }, [activeProject]);
 
   const groupedSpecs = useMemo<SpecGroup[]>(() => {
     const groups = new Map<string, SpecItem[]>();
@@ -72,15 +76,16 @@ export default function EndpointsPage() {
     });
   }, [groupedSpecs]);
 
-  const loadSpecs = async () => {
+  const loadSpecs = async (projectId: string) => {
     try {
-      const data = await fetchJson("/specs");
+      const data = await fetchJson("/specs", { projectId });
       const list: SpecSummary[] = data.specs ?? [];
       const detailed = await Promise.all(
         list.map(async (item) => {
           try {
             const detail = await fetchJson(
-              `/specs/read?path=${encodeURIComponent(item.path)}`
+              `/specs/read?path=${encodeURIComponent(item.path)}`,
+              { projectId }
             );
             return {
               path: item.path,
@@ -119,7 +124,12 @@ export default function EndpointsPage() {
   const createNewVersion = async (group: SpecGroup, basePath: string) => {
     try {
       setIsBusy(true);
-      await fetchJson(`/specs/read?path=${encodeURIComponent(basePath)}`);
+      if (!activeProject) {
+        return;
+      }
+      await fetchJson(`/specs/read?path=${encodeURIComponent(basePath)}`, {
+        projectId: activeProject.id,
+      });
       const versions = group.items.map((item) => item.version);
       const newVersion = nextVersion(versions);
       const newPath = buildVersionPath(basePath, newVersion);
@@ -146,11 +156,15 @@ export default function EndpointsPage() {
     }
     try {
       setIsBusy(true);
+      if (!activeProject) {
+        return;
+      }
       await fetchJson("/scaffold/remove", {
         method: "POST",
         body: JSON.stringify({ spec_path: path, delete_spec: true }),
+        projectId: activeProject.id,
       });
-      await loadSpecs();
+      await loadSpecs(activeProject.id);
       setStatus({ tone: "success", message: "Version deleted." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -181,6 +195,10 @@ export default function EndpointsPage() {
       group.items[group.items.length - 1]
     );
   };
+
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -277,7 +295,7 @@ export default function EndpointsPage() {
             variant="secondary"
             size="sm"
             className="w-full"
-            onClick={loadSpecs}
+            onClick={() => loadSpecs(activeProject.id)}
             disabled={isBusy}
           >
             Refresh list

@@ -20,6 +20,7 @@ import {
   SpecSummary,
 } from "@/lib/specs";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type ExternalConnection = {
   name: string;
@@ -32,6 +33,7 @@ const defaultExternalPermissions = ["create", "read", "update", "delete"];
 export default function EndpointEditorPage() {
   const searchParams = useSearchParams();
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [specItems, setSpecItems] = useState<SpecItem[]>([]);
   const [specPath, setSpecPath] = useState("");
   const [spec, setSpec] = useState<SpecForm>(emptySpec());
@@ -63,18 +65,34 @@ export default function EndpointEditorPage() {
   const isExisting = existingPaths.has(specPath);
   const primaryLabel = isExisting ? "Guardar cambios" : "Crear endpoint";
 
+  const decodeParam = (value: string | null) => {
+    if (!value) {
+      return "";
+    }
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
   useEffect(() => {
-    loadSpecs();
-    loadExternalConnections();
-  }, []);
+    if (activeProject) {
+      loadSpecs(activeProject.id);
+      loadExternalConnections(activeProject.id);
+    }
+  }, [activeProject]);
 
   useEffect(() => {
     setTagsInput(spec.tags.join(", "));
   }, [spec.tags]);
 
   useEffect(() => {
-    const path = searchParams.get("path") ?? "";
-    const cloneFrom = searchParams.get("cloneFrom");
+    if (!activeProject) {
+      return;
+    }
+    const path = decodeParam(searchParams.get("path"));
+    const cloneFrom = decodeParam(searchParams.get("cloneFrom"));
     if (cloneFrom) {
       prepareClone(cloneFrom);
       return;
@@ -84,17 +102,18 @@ export default function EndpointEditorPage() {
       return;
     }
     startNewEndpoint();
-  }, [searchParams]);
+  }, [activeProject, searchParams]);
 
-  const loadSpecs = async () => {
+  const loadSpecs = async (projectId: string) => {
     try {
-      const data = await fetchJson("/specs");
+      const data = await fetchJson("/specs", { projectId });
       const list: SpecSummary[] = data.specs ?? [];
       const detailed = await Promise.all(
         list.map(async (item) => {
           try {
             const detail = await fetchJson(
-              `/specs/read?path=${encodeURIComponent(item.path)}`
+              `/specs/read?path=${encodeURIComponent(item.path)}`,
+              { projectId }
             );
             return {
               path: item.path,
@@ -121,9 +140,9 @@ export default function EndpointEditorPage() {
     }
   };
 
-  const loadExternalConnections = async () => {
+  const loadExternalConnections = async (projectId: string) => {
     try {
-      const data = await fetchJson("/external-dbs");
+      const data = await fetchJson("/external-dbs", { projectId });
       setExternalConnections(data.connections ?? []);
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -139,8 +158,13 @@ export default function EndpointEditorPage() {
 
   const selectSpec = async (path: string) => {
     try {
+      if (!activeProject) {
+        return;
+      }
       setSpecPath(path);
-      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`);
+      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`, {
+        projectId: activeProject.id,
+      });
       const normalized = normalizeSpec(data.spec ?? {});
       setSpec(normalized);
       setTagsInput((normalized.tags ?? []).join(", "));
@@ -152,13 +176,20 @@ export default function EndpointEditorPage() {
 
   const prepareClone = async (path: string) => {
     try {
-      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`);
+      if (!activeProject) {
+        return;
+      }
+      const data = await fetchJson(`/specs/read?path=${encodeURIComponent(path)}`, {
+        projectId: activeProject.id,
+      });
       const baseSpec = normalizeSpec(data.spec ?? {});
       const group = groupedSpecs.find((item) => item.name === baseSpec.name);
       const versions = group?.items.map((item) => item.version) ?? [baseSpec.version];
-      const newVersion = searchParams.get("newVersion") || nextVersion(versions);
+      const newVersion =
+        decodeParam(searchParams.get("newVersion")) || nextVersion(versions);
       const newPath =
-        searchParams.get("newPath") || buildVersionPath(path, newVersion);
+        decodeParam(searchParams.get("newPath")) ||
+        buildVersionPath(path, newVersion);
       setSpecPath(newPath);
       setSpec({ ...baseSpec, version: newVersion });
       setTagsInput((baseSpec.tags ?? []).join(", "));
@@ -190,17 +221,22 @@ export default function EndpointEditorPage() {
       setStatus({ tone: "error", message: "Spec path is required." });
       return;
     }
+    if (!activeProject) {
+      return;
+    }
     try {
       setIsBusy(true);
       await fetchJson("/specs/write", {
         method: "POST",
         body: JSON.stringify({ path: specPath, spec: specPayload }),
+        projectId: activeProject.id,
       });
       await fetchJson("/scaffold/sync", {
         method: "POST",
         body: JSON.stringify({ spec_path: specPath }),
+        projectId: activeProject.id,
       });
-      await loadSpecs();
+      await loadSpecs(activeProject.id);
       setStatus({ tone: "success", message: "Changes saved and generated." });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -214,13 +250,17 @@ export default function EndpointEditorPage() {
       setStatus({ tone: "error", message: "Spec path is required." });
       return;
     }
+    if (!activeProject) {
+      return;
+    }
     try {
       setIsBusy(true);
       await fetchJson(`/scaffold/sync-${direction}`, {
         method: "POST",
         body: JSON.stringify({ spec_path: specPath }),
+        projectId: activeProject.id,
       });
-      await loadSpecs();
+      await loadSpecs(activeProject.id);
       setStatus({ tone: "success", message: `Sync ${direction} completed.` });
     } catch (error) {
       setStatus({ tone: "error", message: String(error) });
@@ -283,6 +323,10 @@ export default function EndpointEditorPage() {
       group.items.some((item) => item.path === specPath)
     );
   }, [groupedSpecs, specPath]);
+
+  if (!activeProject) {
+    return null;
+  }
 
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">

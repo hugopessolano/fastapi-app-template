@@ -2,27 +2,29 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fastapi.testclient import TestClient
-
-from tools.scaffold.api.app import create_api_app
-
-
-def write_file(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+from tests.scaffold_test_utils import (
+    create_minimal_project,
+    create_scaffold_client,
+    open_project,
+    project_headers,
+    write_file,
+)
 
 
 class TestScaffoldSettingsApi(unittest.TestCase):
     def test_reads_and_writes_settings(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            env_path = root / ".env"
+            scaffold_root = Path(tempdir)
+            project_root = scaffold_root / "demo"
+            create_minimal_project(project_root)
+            env_path = project_root / ".env"
             write_file(env_path, "AUTH_MODE=built_in\nRATE_LIMIT_DEFAULT_REQUESTS=60\n")
 
-            app = create_api_app(root)
-            client = TestClient(app)
+            client = create_scaffold_client(scaffold_root)
+            project = open_project(client, project_root)
+            headers = project_headers(project)
 
-            response = client.get("/settings")
+            response = client.get("/settings", headers=headers)
             self.assertEqual(response.status_code, 200)
             settings = response.json()["settings"]
             self.assertEqual(settings["AUTH_MODE"], "built_in")
@@ -36,6 +38,7 @@ class TestScaffoldSettingsApi(unittest.TestCase):
                         "AUTH_MODE": "disabled",
                     }
                 },
+                headers=headers,
             )
             self.assertEqual(response.status_code, 200)
 
@@ -45,13 +48,17 @@ class TestScaffoldSettingsApi(unittest.TestCase):
 
     def test_rejects_unknown_setting(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            app = create_api_app(root)
-            client = TestClient(app)
+            scaffold_root = Path(tempdir)
+            project_root = scaffold_root / "demo"
+            create_minimal_project(project_root)
+            client = create_scaffold_client(scaffold_root)
+            project = open_project(client, project_root)
+            headers = project_headers(project)
 
             response = client.post(
                 "/settings",
                 json={"settings": {"NOT_A_SETTING": "true"}},
+                headers=headers,
             )
             self.assertEqual(response.status_code, 400)
 

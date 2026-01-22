@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { FieldBlock } from "@/components/scaffold-ui";
 import { fetchJson } from "@/lib/scaffold-api";
 import { useScaffoldStatus } from "@/components/scaffold-status";
+import { useRequireProject } from "@/components/project-guard";
 
 type SettingValue = string | number | boolean;
 
@@ -250,6 +251,7 @@ const serializeSettings = (settings: Record<string, SettingValue>) => {
 
 export default function SettingsPage() {
   const { setStatus } = useScaffoldStatus();
+  const activeProject = useRequireProject();
   const [generalSettings, setGeneralSettings] = useState<Record<string, SettingValue>>(
     settingsDefaults
   );
@@ -270,12 +272,14 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (activeProject) {
+      loadSettings(activeProject.id);
+    }
+  }, [activeProject]);
 
-  const loadSettings = async () => {
+  const loadSettings = async (projectId: string) => {
     try {
-      const data = await fetchJson("/settings");
+      const data = await fetchJson("/settings", { projectId });
       const normalized = normalizeSettings(data.settings ?? {});
       setGeneralSettings(normalized);
       setStatus({ tone: "success", message: "Settings loaded." });
@@ -285,12 +289,16 @@ export default function SettingsPage() {
   };
 
   const saveSettings = async () => {
+    if (!activeProject) {
+      return;
+    }
     try {
       setIsBusy(true);
       const payload = serializeSettings(generalSettings);
       await fetchJson("/settings", {
         method: "POST",
         body: JSON.stringify({ settings: payload }),
+        projectId: activeProject.id,
       });
       setStatus({ tone: "success", message: "Settings saved." });
     } catch (error) {
@@ -370,6 +378,10 @@ export default function SettingsPage() {
     );
   };
 
+  if (!activeProject) {
+    return null;
+  }
+
   return (
     <section className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -413,7 +425,7 @@ export default function SettingsPage() {
             </Button>
             <Button
               variant="secondary"
-              onClick={loadSettings}
+              onClick={() => loadSettings(activeProject.id)}
               disabled={isBusy}
             >
               Refresh settings

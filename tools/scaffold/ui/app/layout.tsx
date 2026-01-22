@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import ScaffoldShell from "@/components/scaffold-shell";
 import { ScaffoldStatusProvider } from "@/components/scaffold-status";
+import { ProjectProvider } from "@/components/project-context";
+import ScaffoldFrame from "@/components/scaffold-frame";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${fraunces.variable} antialiased font-sans`}
       >
         <ScaffoldStatusProvider>
-          <ScaffoldShell>{children}</ScaffoldShell>
+          <ProjectProvider>
+            <ScaffoldFrame>{children}</ScaffoldFrame>
+          </ProjectProvider>
         </ScaffoldStatusProvider>
       </body>
     </html>

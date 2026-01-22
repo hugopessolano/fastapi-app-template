@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine
@@ -43,6 +43,14 @@ from tools.scaffold.scaffold import (
     sync_resource_to_code,
 )
 from tools.scaffold.spec import validate_spec
+from tools.scaffold.projects import (
+    browse_projects,
+    get_project,
+    prune_missing_projects,
+    register_project,
+    resolve_projects_path,
+)
+from tools.scaffold.factory import create_project, resolve_template_root
 
 
 class SpecWriteRequest(BaseModel):
@@ -73,6 +81,16 @@ class ExternalDbTestRequest(BaseModel):
     url: str
 
 
+class ProjectOpenRequest(BaseModel):
+    path: str
+    name: str | None = None
+
+
+class ProjectCreateRequest(BaseModel):
+    base_path: str
+    name: str
+
+
 EXTERNAL_DB_PREFIX = "EXTERNAL_DB_"
 EXTERNAL_DB_URL_SUFFIX = "_URL"
 EXTERNAL_DB_PERMISSIONS_SUFFIX = "_PERMISSIONS"
@@ -80,11 +98,13 @@ LEGACY_EXTERNAL_URL_KEY = "EXTERNAL_DB_URL"
 LEGACY_EXTERNAL_PERMISSIONS_KEY = "EXTERNAL_DB_PERMISSIONS"
 EXTERNAL_ALLOWED_BACKENDS = {"sqlite", "postgresql", "mysql", "mariadb"}
 EXTERNAL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
+PROJECT_HEADER = "X-Scaffold-Project"
 
 
-def create_api_app(root: Path) -> FastAPI:
+def create_api_app(scaffold_root: Path) -> FastAPI:
     app = FastAPI(title="Scaffold API")
-    app.state.root = root
+    app.state.scaffold_root = scaffold_root
+    prune_missing_projects(scaffold_root)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -97,8 +117,58 @@ def create_api_app(root: Path) -> FastAPI:
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/projects")
+    def list_projects() -> dict[str, list[dict[str, Any]]]:
+        return {"projects": prune_missing_projects(scaffold_root)}
+
+    @app.get("/projects/browse")
+    def browse_project_dirs(path: str | None = None) -> dict[str, Any]:
+        try:
+            return browse_projects(scaffold_root, path)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except NotADirectoryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/projects/open")
+    def open_project(payload: ProjectOpenRequest) -> dict[str, dict[str, Any]]:
+        try:
+            root, resolved = resolve_projects_path(scaffold_root, payload.path)
+            if not resolved.is_dir():
+                raise HTTPException(status_code=400, detail="Project path is not a folder.")
+            project = register_project(scaffold_root, payload.name, str(resolved))
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"project": project}
+
+    @app.post("/projects/create")
+    def create_project_endpoint(payload: ProjectCreateRequest) -> dict[str, dict[str, Any]]:
+        try:
+            _, base_path = resolve_projects_path(scaffold_root, payload.base_path)
+            if not base_path.is_dir():
+                raise HTTPException(status_code=400, detail="Base path is not a folder.")
+            template_root = resolve_template_root(scaffold_root)
+            project_root = create_project(
+                template_root,
+                base_path,
+                payload.name,
+            )
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except PermissionError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        project = register_project(scaffold_root, payload.name, str(project_root))
+        return {"project": project}
+
     @app.get("/specs")
-    def list_specs() -> dict[str, list[dict[str, str]]]:
+    def list_specs(request: Request) -> dict[str, list[dict[str, str]]]:
+        root = require_project_root(request)
         specs_root = root / "specs"
         if not specs_root.exists():
             return {"specs": []}
@@ -115,14 +185,16 @@ def create_api_app(root: Path) -> FastAPI:
         return {"specs": specs}
 
     @app.get("/specs/read")
-    def read_spec(path: str) -> dict[str, Any]:
+    def read_spec(request: Request, path: str) -> dict[str, Any]:
+        root = require_project_root(request)
         spec_path = resolve_path(root, path)
         if not spec_path.exists():
             raise HTTPException(status_code=404, detail="Spec not found")
         return {"spec": json.loads(spec_path.read_text(encoding="utf-8-sig"))}
 
     @app.post("/specs/write")
-    def write_spec(payload: SpecWriteRequest) -> dict[str, str]:
+    def write_spec(request: Request, payload: SpecWriteRequest) -> dict[str, str]:
+        root = require_project_root(request)
         spec_path = resolve_path(root, payload.path)
         try:
             validate_spec(payload.spec)
@@ -133,27 +205,33 @@ def create_api_app(root: Path) -> FastAPI:
         return {"status": "ok", "path": relative_to_root(root, spec_path)}
 
     @app.post("/scaffold/create")
-    def scaffold_create(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_create(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(root, payload.spec_path, create_resource)
 
     @app.post("/scaffold/modify")
-    def scaffold_modify(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_modify(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(root, payload.spec_path, modify_resource)
 
     @app.post("/scaffold/sync")
-    def scaffold_sync(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_sync(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(root, payload.spec_path, sync_resource)
 
     @app.post("/scaffold/sync-to-code")
-    def scaffold_sync_to_code(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_sync_to_code(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(root, payload.spec_path, sync_resource_to_code)
 
     @app.post("/scaffold/sync-from-code")
-    def scaffold_sync_from_code(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_sync_from_code(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(root, payload.spec_path, sync_resource_from_code)
 
     @app.post("/scaffold/remove")
-    def scaffold_remove(payload: SpecPathRequest) -> dict[str, str]:
+    def scaffold_remove(request: Request, payload: SpecPathRequest) -> dict[str, str]:
+        root = require_project_root(request)
         return scaffold_action(
             root,
             payload.spec_path,
@@ -163,14 +241,16 @@ def create_api_app(root: Path) -> FastAPI:
         )
 
     @app.get("/settings")
-    def read_settings() -> dict[str, dict[str, str]]:
+    def read_settings(request: Request) -> dict[str, dict[str, str]]:
+        root = require_project_root(request)
         env_path = root / ".env"
         settings = _load_env_settings(env_path)
         filtered = {key: value for key, value in settings.items() if key in SETTINGS_KEYS}
         return {"settings": filtered}
 
     @app.post("/settings")
-    def write_settings(payload: SettingsRequest) -> dict[str, dict[str, str]]:
+    def write_settings(request: Request, payload: SettingsRequest) -> dict[str, dict[str, str]]:
+        root = require_project_root(request)
         updates = payload.settings
         unknown = [key for key in updates if key not in SETTINGS_KEYS]
         if unknown:
@@ -184,13 +264,17 @@ def create_api_app(root: Path) -> FastAPI:
         return {"settings": normalized}
 
     @app.get("/external-dbs")
-    def read_external_dbs() -> dict[str, list[dict[str, Any]]]:
+    def read_external_dbs(request: Request) -> dict[str, list[dict[str, Any]]]:
+        root = require_project_root(request)
         env_path = root / ".env"
         settings = _load_env_settings(env_path)
         return {"connections": _parse_external_connections(settings)}
 
     @app.post("/external-dbs")
-    def upsert_external_db(payload: ExternalDbRequest) -> dict[str, list[dict[str, Any]]]:
+    def upsert_external_db(
+        request: Request, payload: ExternalDbRequest
+    ) -> dict[str, list[dict[str, Any]]]:
+        root = require_project_root(request)
         env_path = root / ".env"
         settings = _load_env_settings(env_path)
         name = _normalize_external_name(payload.name)
@@ -201,7 +285,10 @@ def create_api_app(root: Path) -> FastAPI:
         return {"connections": _parse_external_connections(_load_env_settings(env_path))}
 
     @app.post("/external-dbs/delete")
-    def delete_external_db(payload: ExternalDbDeleteRequest) -> dict[str, list[dict[str, Any]]]:
+    def delete_external_db(
+        request: Request, payload: ExternalDbDeleteRequest
+    ) -> dict[str, list[dict[str, Any]]]:
+        root = require_project_root(request)
         env_path = root / ".env"
         settings = _load_env_settings(env_path)
         name = _normalize_external_name(payload.name)
@@ -210,7 +297,7 @@ def create_api_app(root: Path) -> FastAPI:
         return {"connections": _parse_external_connections(_load_env_settings(env_path))}
 
     @app.post("/external-dbs/test")
-    def test_external_db(payload: ExternalDbTestRequest) -> dict[str, str]:
+    def test_external_db(request: Request, payload: ExternalDbTestRequest) -> dict[str, str]:
         url = _validate_external_url(payload.url)
         try:
             engine = create_engine(url, **_external_engine_kwargs(url))
@@ -232,6 +319,17 @@ def resolve_path(root: Path, path: str) -> Path:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid path") from exc
     return resolved
+
+
+def require_project_root(request: Request) -> Path:
+    project_id = request.headers.get(PROJECT_HEADER)
+    if not project_id:
+        raise HTTPException(status_code=400, detail="Missing project header.")
+    scaffold_root = request.app.state.scaffold_root
+    project = get_project(scaffold_root, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return Path(project["path"]).resolve()
 
 
 def scaffold_action(root: Path, spec_path: str, action) -> dict[str, str]:

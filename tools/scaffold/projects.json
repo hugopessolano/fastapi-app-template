@@ -1,0 +1,14 @@
+{
+  "projects": [
+    {
+      "id": "9b977a80dd634639bdab38594342d1a2",
+      "name": "code",
+      "path": "/code"
+    },
+    {
+      "id": "ee1f0f99e80d4c5bb0ce82061cff00ce",
+      "name": "test-new",
+      "path": "/code/test-new"
+    }
+  ]
+}

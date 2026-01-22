@@ -12,9 +12,9 @@ metadata:
 - Modifying Docker services or local runtime setup.
 
 ## Project patterns
-- `docker-compose.yml` defines three services:
-  - `api` (FastAPI, port 8000, `.env` injected).
-  - `scaffold-api` (port 8001).
+- Root `docker-compose.yml` defines the `api` service only (FastAPI, port 8000, `.env` injected).
+- Scaffold tooling runs via `tools/scaffold/docker-compose.yml` with:
+  - `scaffold-api` (port 8001, `SCAFFOLD_TEMPLATE_ROOT` env).
   - `scaffold-ui` (port 3000, `NEXT_PUBLIC_SCAFFOLD_API_URL` env).
 - Source is mounted into containers for live reload.
-- `Dockerfile` builds the FastAPI image with `python:3.13-slim` and runs `uvicorn`.
+- Root `Dockerfile` builds the FastAPI image with `python:3.13-slim` and runs `uvicorn`.
